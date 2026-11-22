@@ -1,0 +1,2 @@
+time,strategy,version,commit,params,test_sharpe,test_return
+2026-11-22T19:36:28+00:00,momentum,v1,69be10d,"lookback=252, k=10, mode=long",0.8053033796009665,0.2789627243831132
