@@ -51,6 +51,11 @@ HOW THE MONEY IS CALCULATED
   large caps; hard-to-borrow stocks cost far more).
 - $100 start, compounded daily, starting on the first day the strategy holds something.
 
+CASH
+Any money not invested earns the 3-month T-bill rate (FRED DTB3); Sharpe ratios are on excess
+returns over that rate. A dollar-neutral long/short book is assumed to earn the rate on its
+collateral, which is a simplification.
+
 KNOWN LIMITATIONS (read these)
 - SURVIVORSHIP BIAS: the list is today's winners. In 1995 we are "choosing" companies that we
   already know became giants. This inflates train results, especially for long-only. The

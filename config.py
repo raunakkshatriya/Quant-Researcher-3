@@ -18,3 +18,6 @@ CRISIS_WINDOWS = {
     "global financial crisis": ("2007-10-09", "2009-03-09"),
     "COVID crash": ("2020-02-19", "2020-04-07"),
 }
+
+# Uninvested cash earns the 3-month T-bill rate (FRED). Set False to compare with the old 0% assumption.
+USE_CASH_YIELD = True

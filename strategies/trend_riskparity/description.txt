@@ -47,10 +47,10 @@ HOW THE MONEY IS CALCULATED
   day t+2's return.
 - Cost: 3 basis points per dollar traded (liquid ETFs). A cost-sensitivity table is printed
   with --test.
-- Cash earns 0%. This is a real simplification: in years with high interest rates (2006-07,
-  2023-25) cash actually pays 4-5%, so time spent in cash is UNDER-rewarded here, which makes
-  the strategy look worse than it would be in practice. Adding a cash yield is a planned
-  engine upgrade.
+- Cash: money not invested earns the 3-month US Treasury bill rate (FRED series DTB3), using the
+  previous day's published rate. Sharpe ratios are computed on returns in EXCESS of that cash
+  rate. (Set USE_CASH_YIELD = False in config.py to see the old 0% assumption.) If the rate
+  cannot be downloaded the program says so and falls back to 0%.
 - $100 start on the first day the strategy holds something.
 
 HOW TO JUDGE THE RESULTS
@@ -65,5 +65,5 @@ KNOWN LIMITATIONS
 - Bond funds had a 40-year tailwind from falling interest rates; trend in bonds looked great
   partly for that reason, which may not repeat.
 - ETFs, not futures: real managed-futures funds trade futures with leverage and shorting.
-- Zero cash yield (above). Monthly rebalancing may react late to fast moves.
+- Cash yield is the T-bill rate, not what your broker pays you (often lower). Monthly rebalancing may react late to fast moves.
 - Weights between month-ends are assumed constant (no drift cost).

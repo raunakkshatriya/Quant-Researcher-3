@@ -15,7 +15,27 @@ import pandas as pd
 import config
 
 
-def run_backtest(prices, weights, cost_bps=0.0, borrow_bps=0.0, delay=None):
+_DEFAULT_CASH_RATE = None   # annual T-bill rate series; set once per run by the lab (see set_default_cash_rate)
+
+
+def set_default_cash_rate(series):
+    """Tell the engine what uninvested cash earns. None = 0%."""
+    global _DEFAULT_CASH_RATE
+    _DEFAULT_CASH_RATE = series
+
+
+def daily_cash(index, cash_rate=None):
+    """Cash return per day for each date in `index` (zeros if no cash rate is set).
+
+    Uses the PREVIOUS day's published rate (what you could actually have known) divided by 252.
+    """
+    rate = _DEFAULT_CASH_RATE if cash_rate is None else cash_rate
+    if rate is None:
+        return pd.Series(0.0, index=index)
+    return (rate.reindex(rate.index.union(index)).ffill().reindex(index).shift(1).fillna(0.0)) / 252
+
+
+def run_backtest(prices, weights, cost_bps=0.0, borrow_bps=0.0, delay=None, cash_rate=None):
     """Simulate a strategy.
 
     prices    : table of prices (day x ticker)
@@ -24,6 +44,9 @@ def run_backtest(prices, weights, cost_bps=0.0, borrow_bps=0.0, delay=None):
                 5 means: buying or selling $1 costs $0.0005. One number covering commission,
                 bid-ask spread and slippage (see each strategy's description.txt).
     borrow_bps: yearly fee on SHORT positions, in bp of the short amount (25 = 0.25% a year).
+    cash_rate : annual interest rate on uninvested cash (Series). None = the default set by
+                set_default_cash_rate, or 0%. Cash = 1 - (sum of weights). A dollar-neutral long/short
+                book therefore earns the rate on all its money (collateral), a simplification.
     delay     : extra days between the signal day and the trade day. None = config.EXEC_DELAY_DAYS.
                 With delay=1 a decision made with Monday's close is traded at Tuesday's close
                 and first earns Wednesday's return.
@@ -34,7 +57,8 @@ def run_backtest(prices, weights, cost_bps=0.0, borrow_bps=0.0, delay=None):
     if delay is None:
         delay = config.EXEC_DELAY_DAYS
     held = weights.reindex(prices.index).fillna(0.0).shift(1 + delay).fillna(0.0)   # <-- the shift
-    gross = (held * returns).sum(axis=1)                 # money made before costs
+    cash_weight = 1.0 - held.sum(axis=1)                 # the part of our money not invested
+    gross = (held * returns).sum(axis=1) + cash_weight * daily_cash(prices.index, cash_rate)
     traded = held.diff().abs().sum(axis=1).fillna(0.0)   # how much we bought/sold that day
     cost = traded * cost_bps / 10_000
     short_amount = (-held.clip(upper=0)).sum(axis=1)     # how much we are short today
@@ -45,7 +69,7 @@ def run_backtest(prices, weights, cost_bps=0.0, borrow_bps=0.0, delay=None):
 
 
 def metrics(ret, days_per_year=252):
-    """Summary numbers for a series of daily returns (risk-free rate assumed 0)."""
+    """Summary numbers for a series of daily returns. Sharpe is on returns in EXCESS of cash."""
     ret = ret.dropna()
     if len(ret) < 20:
         return {}
@@ -57,7 +81,7 @@ def metrics(ret, days_per_year=252):
         # CAGR = compound yearly growth. Meaningless for < 1 year, so we leave it out then.
         "cagr": equity.iloc[-1] ** (1 / years) - 1 if years >= 1 else np.nan,
         "volatility": ret.std() * np.sqrt(days_per_year),            # yearly size of wiggles
-        "sharpe": ret.mean() / ret.std() * np.sqrt(days_per_year) if ret.std() > 0 else np.nan,
+        "sharpe": (ret - daily_cash(ret.index)).mean() / ret.std() * np.sqrt(days_per_year) if ret.std() > 0 else np.nan,
         "max_drawdown": drawdown.min(),                              # worst peak-to-trough fall
     }
 

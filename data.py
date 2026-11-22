@@ -62,3 +62,21 @@ def validate_prices(prices, max_daily_move=0.4, stale_days=10):
     for w in warnings:
         print("  DATA WARNING:", w)
     return warnings
+
+
+def get_cash_rate():
+    """Daily series of the 3-month US Treasury bill rate (annual, as a decimal: 0.045 = 4.5%).
+
+    Source: FRED series DTB3 (free). Cached in data/DTB3.csv. Returns None if it cannot be
+    downloaded, in which case uninvested cash is assumed to earn 0% (and we say so loudly).
+    """
+    file = DATA_DIR / "DTB3.csv"
+    if not file.exists():
+        try:
+            print("downloading T-bill rates (FRED DTB3) ...")
+            pd.read_csv("https://fred.stlouisfed.org/graph/fredgraph.csv?id=DTB3").to_csv(file, index=False)
+        except Exception as e:
+            print(f"  WARNING: could not download cash rates ({e}). Cash will earn 0%.")
+            return None
+    raw = pd.read_csv(file, index_col=0, parse_dates=True).iloc[:, 0]
+    return (pd.to_numeric(raw, errors="coerce") / 100.0).dropna()

@@ -51,6 +51,11 @@ WHAT TO LOOK FOR IN THE RESULTS
   were a lucky fit to the past.
 - The test period is under one year: treat it as a sanity check, not proof.
 
+CASH
+Any money not invested earns the 3-month T-bill rate (FRED DTB3); Sharpe ratios are on excess
+returns over that rate. A dollar-neutral long/short book is assumed to earn the rate on its
+collateral, which is a simplification.
+
 KNOWN LIMITATIONS
 - Most of what a long-only stock strategy earns is simply the market going up. Compare to SPY.
 - Sectors are defined by the fund provider and were redefined in 2018 (XLC was created

@@ -9,14 +9,39 @@ import numpy as np
 import pandas as pd
 from scipy.stats import norm
 
+import engine
+
 EULER_GAMMA = 0.5772156649
 
 
+def _excess(r):
+    """Subtract what cash would have earned (the engine's cash rate; zero if none is set)."""
+    cash = engine.daily_cash(r.index)
+    return r.sub(cash, axis=0) if isinstance(r, pd.DataFrame) else r - cash
+
+
 def sharpe(returns, periods=252):
-    """Annualised Sharpe ratio. Works on a Series or on each column of a DataFrame."""
+    """Annualised Sharpe ratio of EXCESS returns (over cash). Works on a Series or each DataFrame column."""
     r = returns.dropna() if isinstance(returns, pd.Series) else returns
-    out = r.mean() / r.std() * np.sqrt(periods)
-    return out
+    return _excess(r).mean() / r.std() * np.sqrt(periods)
+
+
+def versus_benchmark(strategy_ret, benchmark_ret, periods=252):
+    """Is the strategy really better than the benchmark, or just different?
+
+    Works on the DIFFERENCE between the two daily return series ("active return").
+      active_return : average yearly outperformance
+      tracking_error: yearly volatility of that difference
+      info_ratio    : active_return / tracking_error  (Sharpe of the difference)
+      t_stat        : |t| above about 2 means the outperformance is unlikely to be luck.
+    (The t-stat ignores autocorrelation, so treat it as a rough guide.)
+    """
+    a = (strategy_ret - benchmark_ret).dropna()
+    n = len(a)
+    if n < 60 or a.std() == 0:
+        return {}
+    return {"active_return": a.mean() * periods, "tracking_error": a.std() * np.sqrt(periods),
+            "info_ratio": a.mean() / a.std() * np.sqrt(periods), "t_stat": a.mean() / (a.std() / np.sqrt(n))}
 
 
 def expected_max_sharpe(n_trials, sharpe_std):
@@ -45,7 +70,7 @@ def deflated_sharpe_prob(returns, n_trials, sharpe_std):
     t = len(r)
     if t < 30 or r.std() == 0:
         return float("nan")
-    sr = r.mean() / r.std()                      # per-period Sharpe
+    sr = _excess(r).mean() / r.std()             # per-period Sharpe of excess returns
     skew, kurt = r.skew(), r.kurt() + 3.0        # pandas gives EXCESS kurtosis; formula needs raw
     sr0 = expected_max_sharpe(n_trials, sharpe_std)
     denom = np.sqrt(max(1 - skew * sr + (kurt - 1) / 4 * sr ** 2, 1e-12))

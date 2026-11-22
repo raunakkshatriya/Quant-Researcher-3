@@ -13,11 +13,12 @@ import sys
 import pandas as pd
 
 import config
-from data import validate_prices
+import engine
+from data import get_cash_rate, validate_prices
 from engine import (cost_sensitivity, crisis_table, drop_crises, metrics, run_backtest, split_report,
                     trim_and_rebase)
 from lab import trials
-from lab.stats import deflated_sharpe_prob, sharpe
+from lab.stats import deflated_sharpe_prob, sharpe, versus_benchmark
 from lab.walkforward import walk_forward
 from plots import plot_equity
 from risk import apply_limits
@@ -53,6 +54,10 @@ def run_experiment(name, version, prices, build_weights, grid, cost_bps, borrow_
     limits         : e.g. {"max_position": 0.25, "max_gross": 1.0} applied to every weights table
     """
     print(f"\n=== {name} {version} ===")
+    cash = get_cash_rate() if config.USE_CASH_YIELD else None
+    engine.set_default_cash_rate(cash)
+    print("Cash yield: " + ("uninvested cash earns the 3-month T-bill rate (FRED DTB3); Sharpe is on excess returns"
+                            if cash is not None else "OFF - uninvested cash earns 0%"))
     validate_prices(prices)
     keys = list(grid)
     combos = [dict(zip(keys, v)) for v in itertools.product(*grid.values())]
@@ -121,6 +126,12 @@ def run_experiment(name, version, prices, build_weights, grid, cost_bps, borrow_
           f"   (full train: {sr[best_label]:.2f})")
     print("\nStress test: inside each crisis window (same dates for strategy and benchmark):")
     crisis_table(R_train[best_label], None if bench_train is None else bench_train["ret"])
+    if bench_train is not None:
+        vb = versus_benchmark(R_train[best_label], bench_train["ret"])
+        if vb:
+            print(f"\nVersus {benchmark_name} (train period): outperformance {vb['active_return']:+.1%} a year, "
+                  f"tracking error {vb['tracking_error']:.1%}, information ratio {vb['info_ratio']:.2f}, "
+                  f"t-stat {vb['t_stat']:.1f}  (|t| >= 2 would suggest a real difference)")
 
     # 4. the locked test period
     if not wants_test():

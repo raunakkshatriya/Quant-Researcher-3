@@ -58,3 +58,38 @@ def test_crisis_helpers():
     assert len(dropped) < len(r)
     assert not dropped.loc["2008-06-01":"2008-06-30"].size     # inside the GFC window: removed
     assert dropped.loc["2010-06-01":"2010-06-30"].size          # outside: kept
+
+
+def test_cash_earns_the_rate_when_flat():
+    px = _px([100] * 253)
+    rate = pd.Series(0.0252, index=px.index)                 # 2.52% a year = 0.01% a day
+    res = engine.run_backtest(px, px * 0, cash_rate=rate, delay=0)
+    assert abs(res["ret"].iloc[1:].mean() - 0.0001) < 1e-9
+
+
+def test_cash_weight_is_one_minus_invested():
+    px = _px([100] * 253)
+    rate = pd.Series(0.0252, index=px.index)
+    half = engine.run_backtest(px, px * 0 + 0.5, cash_rate=rate, delay=0)   # 50% in a flat asset, 50% cash
+    assert abs(half["ret"].iloc[5] - 0.00005) < 1e-9
+
+
+def test_sharpe_is_on_excess_returns():
+    from lab.stats import sharpe
+    idx = pd.bdate_range("2020-01-01", periods=500)
+    r = pd.Series(np.random.default_rng(0).normal(0.0004, 0.01, 500), index=idx)
+    engine.set_default_cash_rate(None)
+    s0 = sharpe(r)
+    engine.set_default_cash_rate(pd.Series(0.05, index=idx))
+    s1 = sharpe(r)
+    engine.set_default_cash_rate(None)
+    assert s1 < s0                                            # beating 5% cash is harder than beating 0%
+
+
+def test_versus_benchmark_detects_a_real_edge():
+    from lab.stats import versus_benchmark
+    rng = np.random.default_rng(3)
+    b = pd.Series(rng.normal(0.0003, 0.01, 2500))
+    s = b + rng.normal(0.0004, 0.002, 2500)                   # a steady +0.04% a day over the benchmark
+    assert versus_benchmark(s, b)["t_stat"] > 2
+    assert abs(versus_benchmark(b + rng.normal(0, 0.002, 2500), b)["t_stat"]) < 3
