@@ -88,9 +88,13 @@ def test_half_life_recovers_known_value():
 
 
 def test_pairs_survives_years_where_no_ticker_has_data():
-    """ETFs that start late: the early formation windows are all-NaN and must be skipped, not crash."""
+    """Sector ETFs start in 1998-2018 but share a date index with older stocks: the early formation
+    windows are ALL NaN and must be skipped, not crash (this was a real KeyError)."""
     px, groups = _pair_world()
-    px.loc[:"2010-12-31", list("ABCD")] = np.nan          # the linked group does not exist yet
+    px = px[list("ABCD")]
+    groups = {"only_group": list("ABCD")}
+    px.loc[:"2010-12-31", :] = np.nan                     # nothing exists yet
     w = pairs.build_weights(px, 2.0, 0.0, groups)
-    assert w.loc[:"2010-12-31", list("ABCD")].abs().sum().sum() == 0
+    assert w.loc[:"2010-12-31"].abs().sum().sum() == 0
+    assert (w.abs().sum(axis=1) > 0).any()                # and it trades once data exists
     assert len(pairs.formation_summary(px, groups)) > 0
