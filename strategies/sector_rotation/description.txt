@@ -36,9 +36,13 @@ is better). The best combination is frozen. Only then do we look at the TEST per
 (2026-01-01 onwards). The script prints which combination won.
 
 HOW THE MONEY IS CALCULATED
-- Decision at the end of day t, trade, and the new holdings earn the return of day t+1
-  (the engine's one-day shift - see engine.py).
-- Cost: 3 basis points (0.03%) on every dollar bought or sold.
+- Decision with the close of day t. The order is traded at the close of day t+1 (a one-day
+  execution delay, config.EXEC_DELAY_DAYS) and the new holdings first earn the return of
+  day t+2. This avoids assuming we could trade at the very price that gave us the signal.
+- Cost: 3 basis points (0.03%) on every dollar bought or sold. This single number stands in
+  for commission (about zero at Alpaca), the bid-ask spread (about 1 bp on these ETFs) and
+  slippage. There is no market-impact model: at $100 impact is zero. A cost-sensitivity
+  table (0, 3, 10, 25 bp) is printed so you can see how fragile the result is.
 - Start: $100 on the first day the strategy holds something. Return is compounded daily.
 
 WHAT TO LOOK FOR IN THE RESULTS

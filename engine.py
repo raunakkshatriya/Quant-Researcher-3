@@ -15,22 +15,31 @@ import pandas as pd
 import config
 
 
-def run_backtest(prices, weights, cost_bps=0.0):
+def run_backtest(prices, weights, cost_bps=0.0, borrow_bps=0.0, delay=None):
     """Simulate a strategy.
 
     prices    : table of prices (day x ticker)
     weights   : table of target weights, same shape (decided at the end of each day)
     cost_bps  : trading cost per unit traded, in basis points (1 bp = 0.01%).
-                5 means: buying or selling $1 costs $0.0005.
+                5 means: buying or selling $1 costs $0.0005. One number covering commission,
+                bid-ask spread and slippage (see each strategy's description.txt).
+    borrow_bps: yearly fee on SHORT positions, in bp of the short amount (25 = 0.25% a year).
+    delay     : extra days between the signal day and the trade day. None = config.EXEC_DELAY_DAYS.
+                With delay=1 a decision made with Monday's close is traded at Tuesday's close
+                and first earns Wednesday's return.
 
     Returns a table with columns: ret (daily return after costs), equity (starts at $100).
     """
     returns = prices.pct_change().fillna(0.0)            # each day's % change
-    held = weights.reindex(prices.index).fillna(0.0).shift(1).fillna(0.0)   # <-- the shift
+    if delay is None:
+        delay = config.EXEC_DELAY_DAYS
+    held = weights.reindex(prices.index).fillna(0.0).shift(1 + delay).fillna(0.0)   # <-- the shift
     gross = (held * returns).sum(axis=1)                 # money made before costs
     traded = held.diff().abs().sum(axis=1).fillna(0.0)   # how much we bought/sold that day
     cost = traded * cost_bps / 10_000
-    ret = gross - cost
+    short_amount = (-held.clip(upper=0)).sum(axis=1)     # how much we are short today
+    borrow = short_amount * borrow_bps / 10_000 / 252    # daily share of the yearly fee
+    ret = gross - cost - borrow
     equity = config.START_CAPITAL * (1 + ret).cumprod()
     return pd.DataFrame({"ret": ret, "equity": equity, "traded": traded})
 
@@ -96,3 +105,19 @@ def trim_and_rebase(result):
     out = result.loc[held.idxmax():].copy()
     out["equity"] = config.START_CAPITAL * (1 + out["ret"]).cumprod()
     return out
+
+
+def cost_sensitivity(prices, weights, costs=(0, 3, 10, 25), **kwargs):
+    """Re-run the same strategy with different trading costs and print a small table.
+
+    If the strategy only works at 0-3 bp and dies at 10 bp, its edge is fragile.
+    Extra keyword arguments (e.g. borrow_bps=25) are passed on to run_backtest.
+    """
+    print("\nCost sensitivity (same strategy, different cost per $ traded):")
+    print(f"{'cost (bp)':>10}{'train Sharpe':>14}{'train return':>14}{'test Sharpe':>13}{'test return':>13}")
+    for c in costs:
+        res = trim_and_rebase(run_backtest(prices, weights, cost_bps=c, **kwargs))
+        tr, te = metrics(res.loc[:config.TRAIN_END, "ret"]), metrics(res.loc[config.TEST_START:, "ret"])
+        g = lambda m, k, f: f.format(m[k]) if k in m else "-"
+        print(f"{c:>10}{g(tr, 'sharpe', '{:.2f}'):>14}{g(tr, 'total_return', '{:.0%}'):>14}"
+              f"{g(te, 'sharpe', '{:.2f}'):>13}{g(te, 'total_return', '{:.1%}'):>13}")

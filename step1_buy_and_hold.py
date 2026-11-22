@@ -1,4 +1,5 @@
 """STEP 1 - Our first backtests, and the look-ahead trap.
+(These demos use delay=0 on purpose, to keep the idea simple. Real strategies use delay=1.)
 
 Run with:   python step1_buy_and_hold.py
 
@@ -21,7 +22,7 @@ print(f"AAPL: {len(prices)} days, {prices.index[0].date()} to {prices.index[-1].
 
 # ---- Part A: buy and hold -------------------------------------------------
 weights_hold = prices * 0 + 1.0                  # a table full of 1.0
-hold = run_backtest(prices, weights_hold)
+hold = run_backtest(prices, weights_hold, delay=0)
 split_report(hold, "A) Buy and hold AAPL")
 
 # ---- Part B: the cheat ----------------------------------------------------
@@ -30,13 +31,13 @@ split_report(hold, "A) Buy and hold AAPL")
 # A real trader can never know that. The engine's safety shift is still there; the cheat
 # is in the INFORMATION we feed it.
 tomorrow_up = (prices.pct_change().shift(-1) > 0).astype(float)
-cheat = run_backtest(prices, tomorrow_up)
+cheat = run_backtest(prices, tomorrow_up, delay=0)
 split_report(cheat, "B) CHEAT: hold only on days Apple will rise (uses the future!)")
 
 # ---- Part C: the honest version -------------------------------------------
 # Rule: "hold Apple tomorrow if it went up TODAY". Only uses information we really had.
 today_up = (prices.pct_change() > 0).astype(float)
-honest = run_backtest(prices, today_up, cost_bps=5)
+honest = run_backtest(prices, today_up, cost_bps=5, delay=0)
 split_report(honest, "C) Honest: hold tomorrow if Apple rose today (5 bp cost)")
 
 # ---- Picture ----------------------------------------------------------------

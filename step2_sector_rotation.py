@@ -14,7 +14,7 @@ import pandas as pd
 
 import config
 from data import get_prices
-from engine import metrics, run_backtest, split_report, trim_and_rebase
+from engine import cost_sensitivity, metrics, run_backtest, split_report, trim_and_rebase
 from plots import plot_equity
 from strategies.sector_rotation.strategy import BENCHMARK, SECTOR_ETFS, build_weights
 
@@ -51,6 +51,8 @@ split_report(spy, "Benchmark: buy and hold SPY over the same dates")
 
 latest = weights.iloc[-1]
 print("\nCurrent holdings:", {t: round(w, 2) for t, w in latest.items() if w > 0})
+
+cost_sensitivity(sectors, weights)
 
 plot_equity({"Sector rotation": result, "SPY buy & hold": spy},
             f"Sector rotation vs SPY (lookback={lookback}, k={k})", "step2_sector_rotation.png")

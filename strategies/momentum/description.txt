@@ -1,0 +1,63 @@
+CROSS-SECTIONAL MOMENTUM - what it does and how
+===============================================
+
+THE IDEA
+Stocks that have done well over the past 6-12 months tend to keep doing better than other
+stocks over the next month; stocks that did badly tend to keep lagging. Researchers have seen
+this in many markets since the 1990s (Jegadeesh & Titman, 1993). A common explanation is that
+news and fundamentals sink into prices gradually rather than instantly. "Cross-sectional"
+means we compare stocks AGAINST EACH OTHER on the same date (winners vs losers), not each
+stock against its own past.
+
+WHAT WE TRADE (our specific execution)
+The 50 largest US companies as of 2026-09-08. The list is fixed (we change it only by hand):
+  NVDA Nvidia, AAPL Apple, GOOGL Alphabet A, GOOG Alphabet C, MSFT Microsoft, AMZN Amazon,
+  AVGO Broadcom, META Meta, TSLA Tesla, MU Micron, LLY Eli Lilly, JPM JPMorgan, WMT Walmart,
+  AMD, V Visa, JNJ Johnson & Johnson, XOM Exxon, MA Mastercard, INTC Intel, ORCL Oracle,
+  ABBV AbbVie, BAC Bank of America, CSCO Cisco, PLTR Palantir, CVX Chevron, COST Costco,
+  LRCX Lam Research, KO Coca-Cola, CAT Caterpillar, MRK Merck, AMAT Applied Materials,
+  UNH UnitedHealth, GE GE Aerospace, MS Morgan Stanley, PG Procter & Gamble, DELL Dell,
+  NFLX Netflix, HD Home Depot, GS Goldman Sachs, PM Philip Morris, WFC Wells Fargo,
+  PANW Palo Alto Networks, RTX, GEV GE Vernova, ANET Arista, KLAC KLA, AMGN Amgen,
+  TXN Texas Instruments, C Citigroup, TMO Thermo Fisher.
+Note: GOOG and GOOGL are two share classes of one company, so it counts twice in rankings.
+Stocks that did not yet exist (e.g. PLTR before 2020, GEV before 2024) are skipped until they
+have enough history. We never rank with fewer than 20 stocks available.
+Benchmark for comparison: SPY (S&P 500 index fund), bought and held.
+
+THE RULES
+On the last trading day of every month:
+  1. For each stock compute its return from L trading days ago up to 21 trading days ago.
+     (We skip the latest month because very recent winners tend to bounce back a bit.)
+  2. Rank the stocks from best to worst.
+  3. mode "long":        buy the top K stocks, equal amounts.
+     mode "long_short":  buy the top K (half of our money) and SHORT the bottom K (the other
+                         half). Shorting = borrow shares, sell them, buy them back later.
+                         If the market falls, longs and shorts both fall, so they cancel.
+  4. Hold until the next month-end.
+
+THE SETTINGS L, K AND MODE
+L in {126, 189, 252} days (6, 9, 12 months); K in {5, 10}; mode in {long, long_short} = 12
+combinations. Each is scored on the TRAIN period only (start of data to 2025-12-31) by Sharpe
+ratio; the best is frozen, then evaluated on the TEST period (2026-01-01 onwards).
+
+HOW THE MONEY IS CALCULATED
+- Signal uses the close of day t. We trade at the close of day t+1 (one-day delay) and the new
+  holdings first earn day t+2's return.
+- Trading cost: 5 basis points (0.05%) per dollar bought or sold. This is one number covering
+  commission (zero at Alpaca), bid-ask spread, and slippage on large US stocks. No separate
+  market-impact model (zero at $100). A cost-sensitivity table (0, 3, 10, 25 bp) is printed.
+- Short borrow fee: 0.25% a year on the amount shorted (placeholder for easy-to-borrow
+  large caps; hard-to-borrow stocks cost far more).
+- $100 start, compounded daily, starting on the first day the strategy holds something.
+
+KNOWN LIMITATIONS (read these)
+- SURVIVORSHIP BIAS: the list is today's winners. In 1995 we are "choosing" companies that we
+  already know became giants. This inflates train results, especially for long-only. The
+  honest fix needs historical index membership data, which is not free. Use the TEST period
+  and the settings comparison as the more reliable signal.
+- Large-cap momentum is a weaker effect than in the full stock market; with only 50 names,
+  ranks are noisy.
+- Momentum can suffer sharp crashes when the market turns (e.g. 2009), mostly in long_short.
+- The test period is under one year; its Sharpe ratio is noisy.
+- Shorting needs a margin account and borrow availability; a $100 paper account may not allow it.
