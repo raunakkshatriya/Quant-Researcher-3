@@ -88,9 +88,12 @@ def run_experiment(name, version, prices, build_weights, grid, cost_bps, borrow_
               f"  over {wf.index.year.nunique()} years, {len(set(picks.values()))} different settings used")
     print(f"  Total versions tried so far (all sessions): {n_total}")
     print(f"  Deflated Sharpe probability           : {dsr:.2f}   (>= 0.95 = convincing, < 0.5 = could be luck)")
-    verdict = ("convincing so far" if dsr >= 0.95 else
-               "promising but not proven" if dsr >= 0.75 else "NOT distinguishable from luck yet")
+    verdict = ("luck from picking among settings looks unlikely" if dsr >= 0.95 else
+               "settings-selection luck cannot be ruled out" if dsr >= 0.75 else
+               "result is NOT distinguishable from settings-selection luck")
     print(f"  Verdict on train evidence: {verdict}")
+    print("  CAUTION: this only measures luck from choosing among settings. It cannot see data problems"
+          "\n  (survivorship bias, a hand-picked universe) or an idea you chose after seeing history.")
 
     best_params, best_res = results[best_label]
     weights = weights_for(best_params)
