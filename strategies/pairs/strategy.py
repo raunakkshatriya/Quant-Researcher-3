@@ -77,12 +77,16 @@ def test_pairs(window, groups):
             hl = half_life(ya - beta * xb)
             passed = (pvalue < P_MAX) and (BETA_MIN <= beta <= BETA_MAX) and (HL_MIN <= hl <= HL_MAX)
             rows.append({"a": a, "b": b, "beta": float(beta), "pvalue": pvalue, "half_life": hl, "passed": bool(passed)})
-    return pd.DataFrame(rows, columns=["a", "b", "beta", "pvalue", "half_life", "passed"])
+    out = pd.DataFrame(rows, columns=["a", "b", "beta", "pvalue", "half_life", "passed"])
+    out["passed"] = out["passed"].astype(bool)      # an empty table (no ticker has data yet) must still filter correctly
+    return out
 
 
 def choose_pairs(tested):
     """From the tested table keep the best MAX_PAIRS passing pairs, each ticker used at most once."""
     chosen, used = [], set()
+    if tested.empty or not tested["passed"].any():
+        return tested.iloc[0:0]
     for _, r in tested[tested["passed"]].sort_values("pvalue").iterrows():
         if r["a"] in used or r["b"] in used:
             continue

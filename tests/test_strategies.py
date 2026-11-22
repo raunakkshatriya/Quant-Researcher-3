@@ -85,3 +85,12 @@ def test_half_life_recovers_known_value():
         x[i] = 0.9 * x[i - 1] + rng.normal()        # true half-life = ln(0.5)/ln(0.9) = 6.58 days
     assert abs(pairs.half_life(x) - 6.58) < 0.5
     assert pairs.half_life(np.cumsum(rng.normal(size=5000))) > 60   # a random walk does not mean-revert
+
+
+def test_pairs_survives_years_where_no_ticker_has_data():
+    """ETFs that start late: the early formation windows are all-NaN and must be skipped, not crash."""
+    px, groups = _pair_world()
+    px.loc[:"2010-12-31", list("ABCD")] = np.nan          # the linked group does not exist yet
+    w = pairs.build_weights(px, 2.0, 0.0, groups)
+    assert w.loc[:"2010-12-31", list("ABCD")].abs().sum().sum() == 0
+    assert len(pairs.formation_summary(px, groups)) > 0
