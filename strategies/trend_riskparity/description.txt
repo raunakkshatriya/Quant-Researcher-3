@@ -1,0 +1,69 @@
+CROSS-ASSET TREND FOLLOWING + INVERSE-VOLATILITY SIZING - what it does and how
+==============================================================================
+
+THE IDEA
+Asset prices tend to trend: an asset that has risen over the past 6-12 months is, on average,
+more likely to keep rising for a while than to fall, and the reverse. This "time-series momentum"
+shows up across stocks, bonds, currencies and commodities (Moskowitz, Ooi & Pedersen, 2012) and
+is the basis of managed-futures (CTA) funds. Two ideas are combined here:
+  1. Trend filter: hold an asset only while its own trend is up; otherwise sit in cash.
+     (Unlike S1/S3, this compares each asset with ITS OWN past, not with other assets.)
+  2. Risk-balanced sizing: a calm asset (bonds) should get more money than a wild one (stocks),
+     so no single asset dominates the portfolio's risk.
+The hope is smoother returns and shallower drawdowns than a plain stock portfolio, not a higher
+return in good markets.
+
+WHAT WE TRADE (our specific execution)
+Nine ETFs, one per asset class (all exist at different dates):
+  SPY  US large-cap stocks                 EFA  Developed-market stocks outside the US (from 2001)
+  EEM  Emerging-market stocks (2003)       TLT  Long-term US government bonds (2002)
+  IEF  Medium-term US government bonds (2002)   LQD  Investment-grade corporate bonds (2002)
+  GLD  Gold (2004)                         DBC  Broad commodities (2006)
+  VNQ  US real estate / REITs (2004)
+We do not trade until at least 4 of the funds have enough history, so the first trades happen
+around 2003-2004. Before DBC (2006) the portfolio simply has fewer choices.
+Benchmark for comparison: a 60/40 portfolio, 60% SPY and 40% IEF, rebalanced daily (simplified).
+A pure stock benchmark would be unfair: this strategy holds bonds and gold too.
+
+THE RULES
+On the last trading day of every month:
+  1. Uptrend test: asset price today > asset price L trading days ago? If not, weight 0.
+  2. Among assets in an uptrend, weight = (1 / recent volatility), where volatility is the
+     standard deviation of daily returns over the last 60 days, annualised. Normalise to 100%.
+  3. Estimate the portfolio's volatility from the last 60 days of returns of the held assets
+     (including how they move together). If it exceeds the target T (e.g. 8% a year), multiply
+     every weight by T / estimate. Never multiply by more than 1: NO LEVERAGE.
+  4. Unused money stays in cash.
+Long only. No shorting.
+
+THE SETTINGS L AND T
+L in {126, 189, 252} trading days (6, 9, 12 months); T in {6%, 8%, 10%}: 9 combinations.
+Each is scored on TRAIN only (start of data to 2025-12-31). The runner reports the best, its
+deflated Sharpe probability, and a walk-forward score. The TEST period (2026-01-01 onwards)
+stays locked until you run with --test.
+
+HOW THE MONEY IS CALCULATED
+- Signal uses the close of day t; trade at the close of day t+1; the new holdings first earn
+  day t+2's return.
+- Cost: 3 basis points per dollar traded (liquid ETFs). A cost-sensitivity table is printed
+  with --test.
+- Cash earns 0%. This is a real simplification: in years with high interest rates (2006-07,
+  2023-25) cash actually pays 4-5%, so time spent in cash is UNDER-rewarded here, which makes
+  the strategy look worse than it would be in practice. Adding a cash yield is a planned
+  engine upgrade.
+- $100 start on the first day the strategy holds something.
+
+HOW TO JUDGE THE RESULTS
+- Compare with the 60/40 portfolio. Win on risk (smaller drawdowns), not necessarily on return.
+- Look at the worst drawdown: trend following is meant to cut it, especially in 2008 and 2022.
+- Trend following loses money in choppy, trendless markets (e.g. 2011-2013, early 2026?):
+  long stretches of "whipsaw" are normal, not a sign of a bug.
+
+KNOWN LIMITATIONS
+- Only about 20 years of history, and only a couple of bear markets (2008, 2022): the sample
+  for judging a defensive strategy is tiny.
+- Bond funds had a 40-year tailwind from falling interest rates; trend in bonds looked great
+  partly for that reason, which may not repeat.
+- ETFs, not futures: real managed-futures funds trade futures with leverage and shorting.
+- Zero cash yield (above). Monthly rebalancing may react late to fast moves.
+- Weights between month-ends are assumed constant (no drift cost).

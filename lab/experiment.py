@@ -31,13 +31,15 @@ def _label(params):
 
 
 def run_experiment(name, version, prices, build_weights, grid, cost_bps, borrow_bps=0.0,
-                   benchmark_prices=None, limits=None, label=None):
+                   benchmark_prices=None, limits=None, label=None,
+                   benchmark_weights=None, benchmark_name="Buy & hold"):
     """
     name / version : strategy id, and a version tag you bump when the LOGIC changes
     prices         : price table the strategy trades
     build_weights  : function(prices, **settings) -> weights table
     grid           : {"setting": [values, ...]}  every combination is tried
-    benchmark_prices: price column (DataFrame with 1 column) for buy-and-hold comparison
+    benchmark_prices: price table of the buy-and-hold comparison (1 or more columns)
+    benchmark_weights: {ticker: weight} for the benchmark (default: equal weights), e.g. 60/40
     limits         : e.g. {"max_position": 0.25, "max_gross": 1.0} applied to every weights table
     """
     print(f"\n=== {name} {version} ===")
@@ -113,13 +115,17 @@ def run_experiment(name, version, prices, build_weights, grid, cost_bps, borrow_
     split_report(full, f"{name}: {best_label}")
     bench = None
     if benchmark_prices is not None:
-        bench = run_backtest(benchmark_prices, benchmark_prices * 0 + 1.0, delay=config.EXEC_DELAY_DAYS)
+        bw = pd.Series(benchmark_weights if benchmark_weights
+                       else {c: 1.0 / benchmark_prices.shape[1] for c in benchmark_prices.columns})
+        bw = bw.reindex(benchmark_prices.columns)
+        wb = benchmark_prices * 0 + bw          # constant weights, rebalanced daily (a simplification)
+        bench = run_backtest(benchmark_prices.dropna(), wb.dropna(), delay=config.EXEC_DELAY_DAYS)
         bench = bench.loc[full.index[0]:]
-        split_report(bench, "Benchmark: buy and hold over the same dates")
+        split_report(bench, f"Benchmark: {benchmark_name} over the same dates")
     cost_sensitivity(prices, weights, borrow_bps=borrow_bps)
     curves = {name: full}
     if bench is not None:
-        curves["Buy & hold"] = bench
+        curves[benchmark_name] = bench
     plot_equity(curves, f"{name} ({best_label})", f"{name}.png")
     full.to_csv(f"output/{name}_equity.csv")
     return {"params": best_params, "weights": weights, "result": full}

@@ -5,6 +5,7 @@ import pytest
 
 from strategies.momentum.strategy import build_weights as momentum
 from strategies.sector_rotation.strategy import build_weights as sector
+from strategies.trend_riskparity.strategy import build_weights as trend
 
 
 def _prices(n_assets, seed=0):
@@ -17,6 +18,7 @@ def _prices(n_assets, seed=0):
 @pytest.mark.parametrize("fn,kwargs,n", [
     (sector, {"lookback": 126, "k": 3}, 11),
     (momentum, {"lookback": 189, "k": 5, "mode": "long_short"}, 30),
+    (trend, {"lookback": 126, "vol_target": 0.08}, 9),
 ])
 def test_no_lookahead(fn, kwargs, n):
     px = _prices(n)
