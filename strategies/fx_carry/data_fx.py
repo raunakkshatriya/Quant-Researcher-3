@@ -28,7 +28,7 @@ USD_RATE_ID = "IR3TIB01USM156N"
 # The OECD series for EUR and GBP stopped updating in Jan 2026. Where the OECD series is stale we CONTINUE it
 # with a central-bank policy rate that is still published daily (see splice_rate). Used only when needed.
 SUCCESSORS = {"EUR": "ECBDFR",     # ECB deposit facility rate (daily, from 1999)
-              "GBP": "IUDBEDR"}    # Bank of England official Bank Rate (daily)
+              "GBP": "IUDSOIA"}    # SONIA, the sterling overnight rate (daily). FRED has no Bank Rate series under IUDBEDR (404)
 SPLICE_OVERLAP_MONTHS = 6          # months of overlap used to match the two series' levels
 SPLICE_MIN_GAP_MONTHS = 2          # splice only if the successor reaches at least this many months past the original
 PUBLICATION_LAG_MONTHS = 2   # a monthly value is an AVERAGE over its month and published weeks later:

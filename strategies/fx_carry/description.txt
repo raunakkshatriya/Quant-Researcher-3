@@ -32,7 +32,7 @@ THE PROCESS
    report printed at the start shows each series' last observation, and a DATA WARNING line names any
    currency that has no usable rate on the last day).
    REPAIR (added after the first real run): the OECD euro-area and UK series stop in Jan 2026. We continue
-   them with the ECB deposit facility rate (FRED ECBDFR) and the Bank of England Bank Rate (FRED IUDBEDR),
+   them with the ECB deposit facility rate (FRED ECBDFR) and SONIA, the sterling overnight rate (FRED IUDSOIA; the Bank Rate series IUDBEDR returns 404 on FRED),
    averaged into months, shifted by the average gap over the last 6 months both exist so levels line up.
    History up to the OECD series' last month is never changed, so TRAIN results are identical; only the
    last months (the test period) change. A policy rate is not a 3-month interbank rate, so this is an
