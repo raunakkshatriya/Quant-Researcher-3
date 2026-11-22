@@ -6,16 +6,22 @@ Different trading strategies, built one small step at a time and tested on real 
 * **Train period:** from the first available date up to **2025-12-31**. We look at this data to choose settings.
 * **Test period:** **2026-01-01** onwards. We only look at it after the settings are fixed. This is the honest check.
 * Every strategy starts with **$100** and the dashboard shows what it would be worth.
+* The test period is **locked**: scripts show train results only; add `--test` for one logged look. See `docs/INDUSTRY_READINESS.md` for the standards every step follows.
 * Every strategy gets its own folder with a `description.txt` explaining what it does, how, and which stocks/indexes it uses.
 * This is research and paper-trading practice, not investment advice.
+
+## Run the tests
+```
+python -m pytest -q
+```
 
 ## Roadmap
 | Step | What | Status |
 |---|---|---|
 | 0 | Set up Python, download prices | done when you see "Step 0 passed" |
 | 1 | Tiny backtest engine (positions -> $100 curve) | |
-| 2 | Sector rotation | |
-| 3 | Cross-sectional momentum | |
+| 2 | Sector rotation | `python step2_sector_rotation.py` |
+| 3 | Cross-sectional momentum (+ research lab: trial log, deflated Sharpe, walk-forward, locked test) | `python step3_momentum.py` |
 | 4 | Cross-asset trend following | |
 | 5 | Crypto trend | |
 | 6 | Pairs trading | |

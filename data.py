@@ -35,3 +35,30 @@ def get_prices(tickers, start="1990-01-01"):
             df.to_csv(file)
         columns[t] = pd.read_csv(file, index_col=0, parse_dates=True)["Close"]
     return pd.DataFrame(columns).sort_index()
+
+
+def validate_prices(prices, max_daily_move=0.4, stale_days=10):
+    """Basic data-quality checks. Bad data silently ruins backtests, so we look before we trust.
+
+    Prints a warning for: price <= 0, a one-day move bigger than +-40% (often a data error or
+    an unadjusted split), a price frozen for 10+ days (a dead or halted ticker), and very short
+    histories. Returns the list of warnings (empty = clean).
+    """
+    warnings = []
+    for t in prices.columns:
+        p = prices[t].dropna()
+        if p.empty:
+            warnings.append(f"{t}: no data"); continue
+        if (p <= 0).any():
+            warnings.append(f"{t}: non-positive prices")
+        big = p.pct_change().abs() > max_daily_move
+        if big.any():
+            warnings.append(f"{t}: {int(big.sum())} daily moves above {max_daily_move:.0%} (first: {big.idxmax().date()})")
+        frozen = (p.diff() == 0).astype(int).groupby((p.diff() != 0).cumsum()).cumsum().max()
+        if frozen >= stale_days:
+            warnings.append(f"{t}: price unchanged for {int(frozen)} days in a row")
+        if len(p) < 252:
+            warnings.append(f"{t}: only {len(p)} days of history")
+    for w in warnings:
+        print("  DATA WARNING:", w)
+    return warnings
