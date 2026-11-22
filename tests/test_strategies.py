@@ -26,3 +26,62 @@ def test_no_lookahead(fn, kwargs, n):
     full = fn(px, **kwargs).loc[:cutoff]
     trunc = fn(px.loc[:cutoff], **kwargs).loc[:cutoff]
     pd.testing.assert_frame_equal(full.fillna(0), trunc.fillna(0))
+
+
+# ---------------------------------------------------------------- pairs trading
+from strategies.pairs import strategy as pairs
+
+
+def _pair_world(seed=3):
+    """4 stocks sharing a common trend with mean-reverting gaps (should be pairable) + 4 unrelated random walks."""
+    idx = pd.bdate_range("2003-01-01", "2024-12-31")
+    n, rng = len(idx), np.random.default_rng(seed)
+    common = np.cumsum(rng.normal(0.0003, 0.012, n))
+
+    def ou(theta=0.05, sig=0.01):
+        x = np.zeros(n)
+        for i in range(1, n):
+            x[i] = x[i - 1] * (1 - theta) + rng.normal(0, sig)
+        return x
+
+    cols = {t: np.exp(4 + common + ou()) for t in "ABCD"}
+    cols.update({t: np.exp(4 + np.cumsum(rng.normal(0.0003, 0.015, n))) for t in "EFGH"})
+    return pd.DataFrame(cols, index=idx), {"linked": list("ABCD"), "unrelated": list("EFGH")}
+
+
+def test_pairs_no_lookahead():
+    px, groups = _pair_world()
+    cutoff = px.index[int(len(px) * 0.7)]
+    full = pairs.build_weights(px, 2.0, 0.0, groups).loc[:cutoff]
+    trunc = pairs.build_weights(px.loc[:cutoff], 2.0, 0.0, groups).loc[:cutoff]
+    pd.testing.assert_frame_equal(full, trunc)
+
+
+def test_pairs_finds_linked_stocks_and_respects_limits():
+    px, groups = _pair_world()
+    chosen = pd.concat([f["chosen"] for f in pairs.formation(px, groups)])
+    assert len(chosen) > 0
+    assert set(chosen["a"]).union(chosen["b"]) <= set("ABCD") | set("EFGH")
+    share_linked = chosen["a"].isin(list("ABCD")).mean()
+    assert share_linked > 0.8                       # the linked group is chosen far more often than random walks
+    assert chosen["beta"].between(pairs.BETA_MIN, pairs.BETA_MAX).all()
+    assert chosen["half_life"].between(pairs.HL_MIN, pairs.HL_MAX).all()
+    w = pairs.build_weights(px, 1.5, 0.0, groups)
+    assert w.abs().sum(axis=1).max() <= 1.0 + 1e-9  # never more than 8 slots of 1/8
+    assert (w.abs().sum(axis=1) > 0).any()
+
+
+def test_pairs_each_ticker_in_at_most_one_pair_per_year():
+    px, groups = _pair_world()
+    for f in pairs.formation(px, groups):
+        used = list(f["chosen"]["a"]) + list(f["chosen"]["b"])
+        assert len(used) == len(set(used))
+
+
+def test_half_life_recovers_known_value():
+    rng = np.random.default_rng(0)
+    x = np.zeros(20000)
+    for i in range(1, len(x)):
+        x[i] = 0.9 * x[i - 1] + rng.normal()        # true half-life = ln(0.5)/ln(0.9) = 6.58 days
+    assert abs(pairs.half_life(x) - 6.58) < 0.5
+    assert pairs.half_life(np.cumsum(rng.normal(size=5000))) > 60   # a random walk does not mean-revert

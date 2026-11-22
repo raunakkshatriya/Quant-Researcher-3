@@ -1,0 +1,67 @@
+PAIRS TRADING (statistical arbitrage) - two universes, one engine
+=================================================================
+Run:  python step5_pairs.py          (train period only; test period locked)
+      python step5_pairs.py --test   (one logged look at the test period, both universes)
+
+WHAT IT DOES, IN PLAIN WORDS
+Pick two stocks (or funds) from the same corner of the market that tend to move together. When one
+becomes unusually expensive compared with the other, SHORT the expensive one and BUY the cheap one.
+When the gap closes again, close both. We are betting on the GAP, not on the market going up, so
+market ups and downs mostly cancel out. Each pair is ONE position made of two legs.
+
+THE PROCESS, STEP BY STEP
+1. GROUPS     Pairs are only formed INSIDE a group (our economic reason for two names to be linked).
+2. FORM       On the first trading day of every calendar year, take the previous 504 trading days
+              (about 2 years) of prices. For each pair inside a group:
+                a) hedge ratio beta from regressing log(price A) on log(price B)
+                b) Engle-Granger cointegration test: does the gap  log(A) - beta*log(B)  keep returning
+                   to an average? (statsmodels `coint`, maxlag 5)
+                c) half-life: how many days the gap takes to close halfway
+3. KEEP       Keep pairs with p-value < 0.05, beta between 0.2 and 5, half-life between 3 and 60 days.
+              Rank by p-value, take the best 8, each ticker used in at most one pair.
+4. TRADE      For the rest of the year, each day compute the gap's z-score (how many standard
+              deviations from its own 60-day average):
+                z <= -entry_z : gap too low  -> BUY A, SHORT B
+                z >= +entry_z : gap too high -> SHORT A, BUY B
+                close when z returns to exit_z (0 or 0.5)
+                STOP: if |z| > 4 the relationship is probably broken: close and stay out until z is
+                back inside +-entry_z.
+5. SIZE       Each of the 8 slots gets 1/8 of our money (gross). Inside a slot, A gets 1/(1+beta) and B gets
+              beta/(1+beta), so the two legs hedge each other. Empty slots stay in cash (earning T-bills).
+              Pre-trade risk limits: max 25% in any one ticker, max 100% gross.
+6. RESET      On the first trading day of the next year everything is closed and the pairs are re-chosen
+              using only the data available by then (no look-ahead).
+7. EXECUTION  Signals use the close of day t; trades happen at the close of t+1; first return earned day t+2.
+8. COSTS      Stocks: 5 bp per $ traded per leg. ETFs: 3 bp. Short borrow fee 25 bp a year on the short leg.
+              (Costs differ between universes on purpose - ETFs really are cheaper to trade - so part of any
+              difference in results is cost, not idea. The test-period cost table shows the sensitivity.)
+
+SETTINGS THE LAB TRIES (train period only): entry_z in {1.5, 2.0, 2.5}  x  exit_z in {0.0, 0.5} = 6 combinations.
+Fixed on purpose (changing them is a new version): 504-day formation, 60-day z window, 8 pairs, stop at 4.
+
+BENCHMARK: cash (the T-bill rate). A market-neutral strategy is not compared with SPY; the question is
+whether it earns more than cash. The comparison script also shows SPY by year and market regime, for context.
+
+UNIVERSE 1 - "stocks": 49 large US stocks in 9 groups (the 50 largest US companies on 2026-09-08, minus GOOG
+which is the same company as GOOGL). Pairs: 137 inside groups.
+  semiconductors        : NVDA AVGO MU AMD INTC LRCX AMAT KLAC TXN
+  software_internet     : GOOGL MSFT AMZN META ORCL NFLX PLTR PANW
+  hardware_networking   : AAPL CSCO DELL ANET
+  banks_payments        : JPM BAC MS GS WFC C V MA
+  health                : LLY JNJ ABBV MRK UNH AMGN TMO
+  energy                : XOM CVX
+  staples               : WMT COST KO PG PM
+  industrials           : CAT GE RTX GEV
+  consumer_discretionary: TSLA HD
+UNIVERSE 2 - "etfs": the 11 SPDR sector funds in one group (55 possible pairs):
+  XLK XLF XLV XLE XLY XLP XLI XLB XLU XLRE XLC
+Market reference for the comparison tables only: SPY.
+
+KNOWN WEAKNESSES (read these before believing any result)
+* Multiple testing: we test ~130 (stocks) or 55 (ETFs) pairs every year. At p < 0.05 about 5% pass by pure
+  luck. The comparison output prints how many passed vs how many luck alone would pass.
+* Survivorship: the stock list is today's giants. Pairs where one company later failed are missing.
+* Pairs break (mergers, scandals, technology shifts). The stop limits the damage, not the cost.
+* Crowded trade: large funds do this with better data and lower costs.
+* Low volatility: with 1/8 slots and often fewer than 8 pairs, the strategy holds little risk and mostly cash.
+  Do NOT "fix" that by adding leverage until the edge itself is proven.

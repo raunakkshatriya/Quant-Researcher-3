@@ -10,6 +10,7 @@ Typical session:
 import itertools
 import sys
 
+import numpy as np
 import pandas as pd
 
 import config
@@ -132,6 +133,12 @@ def run_experiment(name, version, prices, build_weights, grid, cost_bps, borrow_
             print(f"\nVersus {benchmark_name} (train period): outperformance {vb['active_return']:+.1%} a year, "
                   f"tracking error {vb['tracking_error']:.1%}, information ratio {vb['info_ratio']:.2f}, "
                   f"t-stat {vb['t_stat']:.1f}  (|t| >= 2 would suggest a real difference)")
+
+    if bench_train is None:
+        excess = R_train[best_label] - engine.daily_cash(R_train.index)
+        t_cash = excess.mean() / (excess.std() / np.sqrt(len(excess)))
+        print(f"\nVersus cash (T-bills), train period: earns {excess.mean() * 252:+.1%} a year more than cash, "
+              f"t-stat {t_cash:.1f}  (|t| >= 2 would suggest a real edge)")
 
     # 4. the locked test period
     if not wants_test():
