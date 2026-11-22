@@ -1,0 +1,55 @@
+FX CARRY + MOMENTUM - what it does and how
+==========================================
+Run:  python step6_fx_carry.py          (train period only; test period locked)
+      python step6_fx_carry.py --test   (one logged look at the test period)
+
+THE IDEAS (two separate signals, tested alone and mixed)
+CARRY: Holding a currency that pays a higher interest rate than the dollar earns you that interest gap
+every day. Historically the high-rate currencies have, on average, NOT fallen enough to cancel the
+interest (economists call this the "forward premium puzzle"), so buying high-yielders and shorting
+low-yielders has paid on average. The risk is that it pays small amounts for a long time, then loses a lot
+very fast when markets panic and everyone sells the high-yielders at once (2008, and the Swiss franc
+shock of January 2015 for franc shorts). That crash risk is the price of the return, not a flaw to remove.
+MOMENTUM: Currencies that have risen over the past 6-12 months tend to keep rising a little. This is weaker
+than in stocks, and the two signals are not the same bet: carry buys high-rate currencies, momentum buys
+recent winners, and these are often different currencies.
+
+WHAT WE TRADE (our specific execution): 9 currencies against the US dollar
+  EUR (EURUSD=X), GBP (GBPUSD=X), JPY (JPY=X, inverted), CHF (CHF=X, inverted), AUD (AUDUSD=X),
+  NZD (NZDUSD=X), CAD (CAD=X, inverted), NOK (NOK=X, inverted), SEK (SEK=X, inverted).
+  Prices: Yahoo Finance daily closes. "Inverted" = Yahoo quotes foreign-per-dollar; we flip it to
+  dollars-per-foreign-unit so up always means "the foreign currency got stronger".
+  Interest rates: FRED / OECD 3-month interbank rates, monthly (IR3TIB01{EZ,DE,GB,JP,CH,AU,NZ,CA,NO,SE,US}M156N).
+  Benchmark: cash (T-bill). A currency book with long and short legs is not compared with SPY.
+
+THE PROCESS
+1. TOTAL-RETURN INDEX. For each currency, one day's return = exchange-rate change
+   + (currency's interest rate - US interest rate) / 252. Holding the currency long earns that
+   differential; being SHORT a high-rate currency PAYS it. The backtest engine then trades these indexes.
+2. NO PEEKING AT RATES. The OECD value for a month is an average over that month and is published weeks
+   later. We treat the value dated month m as known only from the start of month m+2. If a series stops
+   updating, after 150 days we stop trusting it and that currency is left out of the ranking (the data
+   report printed at the start shows each series' last observation).
+3. MONTH-END RANKING among the eligible currencies (need an exchange rate, a known carry, and enough
+   history; at least 6 eligible):
+     carry rank     = rank of the interest differential vs USD
+     momentum rank  = rank of the exchange-rate change over the last `lookback` days (126 or 252)
+     combined       = w_carry * carry rank + (1 - w_carry) * momentum rank
+4. POSITIONS. BUY the top 3 (1/6 of our money each), SHORT the bottom 3 (1/6 each). Gross exposure 1.0,
+   long and short roughly cancel, so the whole-dollar move mostly cancels. Held until next month-end.
+5. EXECUTION. Signal at the close of day t, trade at the close of day t+1 (engine delay).
+6. COSTS. 3 bp per $ traded (majors cost about 1 bp; NOK, SEK, NZD more). No separate borrow fee: financing
+   is already inside the interest differential. The collateral earns the T-bill rate.
+7. SETTINGS THE LAB TRIES (train only): w_carry in {0, 0.5, 1} x lookback in {126, 252} = 6 combinations.
+   (With w_carry = 1 the lookback is irrelevant, so those two rows are identical: carry-only.)
+   Reading the ranked table tells you which ingredient works: carry only (1.0), momentum only (0.0), or the mix.
+
+KNOWN WEAKNESSES
+* Carry crash risk: long periods of small gains, short episodes of large losses. A Sharpe ratio understates this.
+* Short history: Yahoo's EUR starts in Dec 2003, so there are only about 21 years of train data and a few
+  carry crashes. One or two events decide the result.
+* Monthly OECD interbank rates are a rough proxy for what a trader really earns (forward points, bank spreads).
+  The 2-month delay is deliberately conservative. Real implementations use forwards or swap points.
+* Yahoo FX closes are not a tradable quote and differ by source; they are fine for research, not execution.
+* Only 9 developed-market currencies. Emerging-market carry is larger but much riskier and needs better data.
+* Gross exposure 1.0 gives a low-volatility book (probably around 4-5%). Do not add leverage until an edge is proven.

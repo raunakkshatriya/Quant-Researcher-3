@@ -98,3 +98,67 @@ def test_pairs_survives_years_where_no_ticker_has_data():
     assert w.loc[:"2010-12-31"].abs().sum().sum() == 0
     assert (w.abs().sum(axis=1) > 0).any()                # and it trades once data exists
     assert len(pairs.formation_summary(px, groups)) > 0
+
+
+# ---------------------------------------------------------------- FX carry + momentum
+from engine import run_backtest
+from strategies.fx_carry import data_fx
+from strategies.fx_carry.strategy import build_weights as fx_weights
+
+
+def _fx_world(seed=5, n_ccy=8):
+    idx = pd.bdate_range("2004-01-01", "2024-12-31")
+    rng = np.random.default_rng(seed)
+    cols = [f"C{i}" for i in range(n_ccy)]
+    spot = pd.DataFrame(np.exp(np.cumsum(rng.normal(0, 0.005, (len(idx), n_ccy)), axis=0)), index=idx, columns=cols)
+    base = rng.uniform(-0.01, 0.05, n_ccy)
+    carry = pd.DataFrame(base + 0.002 * np.sin(np.arange(len(idx))[:, None] / 300 + np.arange(n_ccy)), index=idx, columns=cols)
+    return spot, carry, data_fx.total_return_index(spot, carry)
+
+
+def test_fx_no_lookahead():
+    spot, carry, tri = _fx_world()
+    cutoff = tri.index[int(len(tri) * 0.7)]
+    for w_carry in (0.0, 0.5, 1.0):
+        full = fx_weights(tri, w_carry, 126, carry, spot).loc[:cutoff]
+        trunc = fx_weights(tri.loc[:cutoff], w_carry, 126, carry.loc[:cutoff], spot.loc[:cutoff]).loc[:cutoff]
+        pd.testing.assert_frame_equal(full.fillna(0), trunc.fillna(0))
+
+
+def test_fx_carry_only_buys_highest_carry_and_shorts_lowest():
+    spot, carry, tri = _fx_world()
+    carry = carry * 0 + np.linspace(-0.02, 0.06, carry.shape[1])      # C0 lowest ... C7 highest, constant
+    w = fx_weights(tri, 1.0, 126, carry, spot).dropna()
+    last = w.iloc[-1]
+    assert set(last[last > 0].index) == {"C5", "C6", "C7"}
+    assert set(last[last < 0].index) == {"C0", "C1", "C2"}
+    assert abs(last.sum()) < 1e-9 and abs(last.abs().sum() - 1.0) < 1e-9
+
+
+def test_total_return_index_earns_the_interest_differential():
+    idx = pd.bdate_range("2010-01-01", "2010-12-31")
+    spot = pd.DataFrame({"X": 1.0}, index=idx)                         # exchange rate does not move
+    carry = pd.DataFrame({"X": 0.05}, index=idx)                       # 5% a year differential
+    tri = data_fx.total_return_index(spot, carry)
+    assert abs(tri["X"].iloc[-1] / 100 - 1 - 0.05) < 0.003
+    # short position in a high-carry currency PAYS the differential
+    w = pd.DataFrame({"X": -0.5}, index=idx)
+    res = run_backtest(tri, w, cost_bps=0, delay=0, cash_rate=pd.Series(0.0, index=idx))
+    assert res["ret"].sum() < -0.02
+
+
+def test_rate_is_not_used_before_it_could_have_been_known_and_goes_stale():
+    monthly = pd.Series([0.01, 0.02, 0.03], index=pd.to_datetime(["2020-01-01", "2020-02-01", "2020-03-01"]))
+    idx = pd.bdate_range("2020-01-01", "2020-12-31")
+    d = data_fx.daily_rate(monthly, idx, max_stale_days=100)      # default lag: the one real runs use
+    assert d.loc[:"2020-02-28"].isna().all()                           # January's value is known from 1 March only
+    assert d.loc["2020-03-02"] == 0.01
+    assert d.loc["2020-05-04"] == 0.03                                 # March's value arrives 1 May
+    assert pd.isna(d.loc["2020-12-30"])                                # nothing new for months: stale, not trusted
+
+
+def test_fx_currency_without_carry_is_never_traded():
+    spot, carry, tri = _fx_world()
+    carry["C3"] = np.nan
+    w = fx_weights(tri, 0.5, 126, carry, spot)
+    assert (w["C3"].fillna(0) == 0).all()

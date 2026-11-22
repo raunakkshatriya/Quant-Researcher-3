@@ -80,3 +80,21 @@ def get_cash_rate():
             return None
     raw = pd.read_csv(file, index_col=0, parse_dates=True).iloc[:, 0]
     return (pd.to_numeric(raw, errors="coerce") / 100.0).dropna()
+
+
+def get_fred_series(series_id):
+    """Any FRED series as a Series of DECIMALS (4.5 percent -> 0.045), cached in data/<id>.csv.
+
+    Returns None (with a warning) if it cannot be downloaded, so one missing series never crashes a run.
+    """
+    file = DATA_DIR / f"{series_id}.csv"
+    if not file.exists():
+        try:
+            print(f"downloading FRED {series_id} ...")
+            pd.read_csv(f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}").to_csv(file, index=False)
+        except Exception as e:
+            print(f"  WARNING: could not download FRED {series_id} ({e})")
+            return None
+    raw = pd.read_csv(file, index_col=0, parse_dates=True).iloc[:, 0]
+    out = (pd.to_numeric(raw, errors="coerce") / 100.0).dropna()
+    return out if len(out) else None

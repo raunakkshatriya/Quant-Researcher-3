@@ -24,8 +24,8 @@ python -m pytest -q
 | 3 | Cross-sectional momentum (+ research lab: trial log, deflated Sharpe, walk-forward, locked test) | `python step3_momentum.py` |
 | 4 | Cross-asset trend following | `python step4_trend_riskparity.py` |
 | 5 | Pairs trading: 49 stocks vs 11 sector ETFs, compared (crypto trend postponed) | `python step5_pairs.py` |
-| 6 | Crypto trend (postponed) | |
-| 7 | FX carry + momentum | |
+| 6 | FX carry + momentum (9 currencies vs USD) | `python step6_fx_carry.py` |
+| 7 | Crypto trend (postponed) | |
 | 8 | Execution research | |
 | 9 | News sentiment | |
 | 10 | Dashboard | |
