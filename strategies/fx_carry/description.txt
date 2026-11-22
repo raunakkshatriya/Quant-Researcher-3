@@ -29,7 +29,14 @@ THE PROCESS
 2. NO PEEKING AT RATES. The OECD value for a month is an average over that month and is published weeks
    later. We treat the value dated month m as known only from the start of month m+2. If a series stops
    updating, after 150 days we stop trusting it and that currency is left out of the ranking (the data
-   report printed at the start shows each series' last observation).
+   report printed at the start shows each series' last observation, and a DATA WARNING line names any
+   currency that has no usable rate on the last day).
+   REPAIR (added after the first real run): the OECD euro-area and UK series stop in Jan 2026. We continue
+   them with the ECB deposit facility rate (FRED ECBDFR) and the Bank of England Bank Rate (FRED IUDBEDR),
+   averaged into months, shifted by the average gap over the last 6 months both exist so levels line up.
+   History up to the OECD series' last month is never changed, so TRAIN results are identical; only the
+   last months (the test period) change. A policy rate is not a 3-month interbank rate, so this is an
+   approximation, and the report prints the splice offset in bp for each repaired currency.
 3. MONTH-END RANKING among the eligible currencies (need an exchange rate, a known carry, and enough
    history; at least 6 eligible):
      carry rank     = rank of the interest differential vs USD

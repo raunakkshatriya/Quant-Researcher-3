@@ -20,6 +20,10 @@ spot, carry, tri, report = load_fx()
 print("\nDATA REPORT (what we actually got):")
 with pd.option_context("display.width", 200, "display.max_columns", 20):
     print(report.to_string(float_format=lambda x: f"{x:.2f}"))
+print(f"US rate series last observation: {report.attrs['usd_last_obs']}")
+for code, r in report.iterrows():
+    if r["status"] == "ok" and not r["carry_known_on_last_day"]:
+        print(f"  DATA WARNING: {code} has no usable interest rate on the last day (series stale): it is left out of the ranking")
 print(f"\nExchange-rate table: {spot.index[0].date()} to {spot.index[-1].date()}, {spot.shape[1]} currencies")
 
 run_experiment(

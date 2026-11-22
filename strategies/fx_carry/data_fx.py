@@ -25,6 +25,12 @@ CURRENCIES = {
     "SEK": ("SEK=X", True, ["IR3TIB01SEM156N"]),
 }
 USD_RATE_ID = "IR3TIB01USM156N"
+# The OECD series for EUR and GBP stopped updating in Jan 2026. Where the OECD series is stale we CONTINUE it
+# with a central-bank policy rate that is still published daily (see splice_rate). Used only when needed.
+SUCCESSORS = {"EUR": "ECBDFR",     # ECB deposit facility rate (daily, from 1999)
+              "GBP": "IUDBEDR"}    # Bank of England official Bank Rate (daily)
+SPLICE_OVERLAP_MONTHS = 6          # months of overlap used to match the two series' levels
+SPLICE_MIN_GAP_MONTHS = 2          # splice only if the successor reaches at least this many months past the original
 PUBLICATION_LAG_MONTHS = 2   # a monthly value is an AVERAGE over its month and published weeks later:
                              # the value for month m is only treated as known from the start of month m+2
 MAX_STALE_DAYS = 150         # if a rate series stops updating, drop that currency after this many days
@@ -45,6 +51,27 @@ def daily_rate(monthly, index, lag_months=PUBLICATION_LAG_MONTHS, max_stale_days
     when = pd.Series(known_from.index, index=known_from.index).reindex(union).ffill().reindex(index)
     age = (index.to_series() - when).dt.days
     return val.where(age <= max_stale_days)
+
+
+def splice_rate(primary, successor_daily, overlap_months=SPLICE_OVERLAP_MONTHS, min_gap_months=SPLICE_MIN_GAP_MONTHS):
+    """Continue a stale monthly rate series with a daily successor series (both annual decimals).
+
+    The successor is averaged into months (same convention as the OECD series). Its level differs a little from the
+    original (a policy rate is not a 3-month interbank rate), so we add the AVERAGE gap over the last
+    `overlap_months` months both exist. Values up to the original's last month are never changed.
+    Returns (series, info). info is None when no splice was needed or possible.
+    """
+    succ = successor_daily.resample("MS").mean().dropna()
+    last = primary.index[-1]
+    if succ.empty or succ.index[-1] < last + pd.DateOffset(months=min_gap_months):
+        return primary, None                                            # original is not stale: leave it alone
+    overlap = primary.index.intersection(succ.index)[-overlap_months:]
+    if len(overlap) < 3:
+        return primary, None                                            # cannot match levels: do not guess
+    offset = float((primary[overlap] - succ[overlap]).mean())
+    extension = succ[succ.index > last] + offset
+    out = pd.concat([primary, extension])
+    return out, {"spliced_after": last.date(), "offset_bp": 1e4 * offset, "months_added": len(extension)}
 
 
 def total_return_index(spot, carry):
@@ -80,6 +107,14 @@ def load_fx(start="1990-01-01"):
             row["status"] = "DROPPED: no " + ("prices" if px.empty else "interest-rate series")
             rows.append(row)
             continue
+        if code in SUCCESSORS:
+            succ = get_fred_series(SUCCESSORS[code])
+            if succ is not None:
+                rate, info = splice_rate(rate, succ)
+                if info:
+                    row["spliced_with"] = SUCCESSORS[code]
+                    row["splice_offset_bp"] = info["offset_bp"]
+                    row["months_added"] = info["months_added"]
         spot_cols[code] = 1.0 / px if inverted else px
         rate_cols[code] = rate
         row.update({"rate_series": used, "price_first": px.index[0].date(), "price_last": px.index[-1].date(),
@@ -94,6 +129,7 @@ def load_fx(start="1990-01-01"):
     carry = pd.DataFrame({c: daily_rate(r, spot.index) - usd_d for c, r in rate_cols.items()})
     tri = total_return_index(spot, carry)
     report = pd.DataFrame(rows).set_index("currency")
+    report.attrs["usd_last_obs"] = usd.index[-1].date()
     last = spot.index[-1]
     report["carry_known_on_last_day"] = [bool(c in carry and pd.notna(carry[c].iloc[-1])) for c in report.index]
     report["avg carry %/yr"] = [100 * carry[c].mean() if c in carry else np.nan for c in report.index]

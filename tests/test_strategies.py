@@ -162,3 +162,40 @@ def test_fx_currency_without_carry_is_never_traded():
     carry["C3"] = np.nan
     w = fx_weights(tri, 0.5, 126, carry, spot)
     assert (w["C3"].fillna(0) == 0).all()
+
+
+# ---------------------------------------------------------------- FX: continuing a stale rate series
+def _monthly(start, end, value):
+    idx = pd.date_range(start, end, freq="MS")
+    return pd.Series(value, index=idx, dtype=float)
+
+
+def _daily(start, end, value):
+    return pd.Series(value, index=pd.bdate_range(start, end), dtype=float)
+
+
+def test_splice_extends_stale_series_with_level_match_and_keeps_history():
+    primary = _monthly("2024-01-01", "2026-01-01", 0.02)                  # stale after Jan 2026
+    successor = _daily("2024-01-01", "2026-11-20", 0.025)                  # policy rate, 50bp higher, still updating
+    out, info = data_fx.splice_rate(primary, successor)
+    pd.testing.assert_series_equal(out.loc[:"2026-01-01"], primary)        # history untouched
+    assert out.index[-1] >= pd.Timestamp("2026-10-01")
+    assert abs(out.loc["2026-06-01"] - 0.02) < 1e-9                        # successor 0.025 minus the 50bp gap
+    assert abs(info["offset_bp"] + 50) < 1e-6 and info["months_added"] >= 9
+
+
+def test_splice_not_used_when_original_is_current_or_overlap_too_short():
+    current = _monthly("2024-01-01", "2026-10-01", 0.02)
+    out, info = data_fx.splice_rate(current, _daily("2024-01-01", "2026-11-20", 0.03))
+    assert info is None and out.equals(current)
+    stale_short = _monthly("2026-01-01", "2026-02-01", 0.02)               # only 2 overlapping months
+    out, info = data_fx.splice_rate(stale_short, _daily("2026-01-01", "2026-11-20", 0.03))
+    assert info is None
+
+
+def test_splice_makes_recent_carry_known_instead_of_stale():
+    idx = pd.bdate_range("2026-01-01", "2026-11-20")
+    stale = _monthly("2023-01-01", "2026-01-01", 0.02)
+    assert data_fx.daily_rate(stale, idx).iloc[-1] != data_fx.daily_rate(stale, idx).iloc[-1]   # NaN: stale
+    fixed, _ = data_fx.splice_rate(stale, _daily("2023-01-01", "2026-11-20", 0.02))
+    assert data_fx.daily_rate(fixed, idx).iloc[-1] == pytest.approx(0.02)
