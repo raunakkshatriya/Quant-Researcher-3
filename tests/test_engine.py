@@ -48,3 +48,13 @@ def test_month_end_drops_unfinished_month():
     idx = pd.bdate_range("2024-01-01", "2024-03-14")
     ends = engine.month_end_dates(idx)
     assert ends[-1] == pd.Timestamp("2024-02-29") and len(ends) == 2
+
+
+def test_crisis_helpers():
+    import config
+    idx = pd.bdate_range("2007-01-01", "2010-12-31")
+    r = pd.Series(0.001, index=idx)
+    dropped = engine.drop_crises(r)
+    assert len(dropped) < len(r)
+    assert not dropped.loc["2008-06-01":"2008-06-30"].size     # inside the GFC window: removed
+    assert dropped.loc["2010-06-01":"2010-06-30"].size          # outside: kept

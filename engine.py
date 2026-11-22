@@ -65,15 +65,16 @@ def metrics(ret, days_per_year=252):
 def split_report(result, name):
     """Print train and test metrics side by side."""
     train = metrics(result.loc[:config.TRAIN_END, "ret"])
+    train_ex = metrics(drop_crises(result.loc[:config.TRAIN_END, "ret"]))
     test = metrics(result.loc[config.TEST_START:, "ret"])
     rows = [("Total return", "total_return", "{:.1%}"), ("CAGR (per year)", "cagr", "{:.1%}"),
             ("Volatility", "volatility", "{:.1%}"), ("Sharpe", "sharpe", "{:.2f}"),
             ("Worst drawdown", "max_drawdown", "{:.1%}")]
     print(f"\n{name}")
-    print(f"{'':18}{'TRAIN':>12}{'TEST':>12}")
+    print(f"{'':18}{'TRAIN':>12}{'TRAIN ex-crisis':>17}{'TEST':>12}")
     for label, key, fmt in rows:
         f = lambda m: fmt.format(m[key]) if key in m and pd.notna(m[key]) else "-"
-        print(f"{label:18}{f(train):>12}{f(test):>12}")
+        print(f"{label:18}{f(train):>12}{f(train_ex):>17}{f(test):>12}")
     if len(result.loc[config.TEST_START:]):
         end = result.loc[config.TEST_START:, "ret"].add(1).prod() * config.START_CAPITAL
         print(f"$100 invested on {config.TEST_START.date()} is worth ${end:.2f} at the end of the data")
@@ -121,3 +122,38 @@ def cost_sensitivity(prices, weights, costs=(0, 3, 10, 25), **kwargs):
         g = lambda m, k, f: f.format(m[k]) if k in m else "-"
         print(f"{c:>10}{g(tr, 'sharpe', '{:.2f}'):>14}{g(tr, 'total_return', '{:.0%}'):>14}"
               f"{g(te, 'sharpe', '{:.2f}'):>13}{g(te, 'total_return', '{:.1%}'):>13}")
+
+
+def crisis_mask(index):
+    """True for every date inside one of the crisis windows in config.CRISIS_WINDOWS."""
+    mask = pd.Series(False, index=index)
+    for start, end in config.CRISIS_WINDOWS.values():
+        mask.loc[start:end] = True
+    return mask
+
+
+def drop_crises(series):
+    """The same daily-return series with the crisis days removed (for 'ex-crisis' statistics)."""
+    return series[~crisis_mask(series.index)]
+
+
+def crisis_table(strategy_ret, benchmark_ret=None):
+    """Print what the strategy (and benchmark) did INSIDE each crisis window.
+
+    This is the stress test. A defensive strategy is supposed to shine here; a strategy that only
+    works when crises are removed is fragile, and this table shows it.
+    """
+    rows = []
+    for name, (a, b) in config.CRISIS_WINDOWS.items():
+        r = strategy_ret.loc[a:b]
+        if len(r) < 20 or r.index[0] > pd.Timestamp(a) + pd.Timedelta(days=30):
+            continue                                   # strategy did not exist for this window
+        eq = (1 + r).cumprod()
+        row = {"window": name, "strategy": eq.iloc[-1] - 1, "worst drawdown": (eq / eq.cummax() - 1).min()}
+        if benchmark_ret is not None and len(benchmark_ret.loc[a:b]):
+            row["benchmark"] = (1 + benchmark_ret.loc[a:b]).prod() - 1
+        rows.append(row)
+    if not rows:
+        print("  (no crisis windows fall inside this strategy's history)")
+        return
+    print(pd.DataFrame(rows).set_index("window").to_string(float_format=lambda x: f"{x:.1%}"))

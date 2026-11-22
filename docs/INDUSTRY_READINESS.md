@@ -18,6 +18,7 @@ Real-capital decisions are always yours; this is research and paper-trading prac
 | Strategies are pure functions: prices -> target weights | `strategies/*/strategy.py` | Same code can be backtested, paper-traded, or live; the broker is a separate adapter |
 | Execution delay of 1 day, costs, borrow fees | `engine.py`, `config.py` | No trading at the price that produced the signal |
 | Cost-sensitivity table with every test look | `engine.cost_sensitivity` | Shows fragility to the cost assumption |
+| Crisis windows (dot-com, 2008, COVID) reported **with and without**, plus a stress table of what happened inside them; used for reporting only, never to rank settings or hide results | `config.CRISIS_WINDOWS`, `engine.crisis_table` | A strategy must be judged by what it does when markets break, not only when they are calm |
 | Pre-trade risk limits (max position, max gross) | `risk.py` | Strategy proposes, risk layer disposes |
 | Data-quality checks before every run | `data.validate_prices` | Bad data silently ruins backtests |
 | Causality tests (no look-ahead) and engine accounting tests, run in CI | `tests/`, `.github/workflows/tests.yml` | Bugs here are the most expensive kind |

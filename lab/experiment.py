@@ -14,7 +14,8 @@ import pandas as pd
 
 import config
 from data import validate_prices
-from engine import cost_sensitivity, metrics, run_backtest, split_report, trim_and_rebase
+from engine import (cost_sensitivity, crisis_table, drop_crises, metrics, run_backtest, split_report,
+                    trim_and_rebase)
 from lab import trials
 from lab.stats import deflated_sharpe_prob, sharpe
 from lab.walkforward import walk_forward
@@ -28,6 +29,15 @@ def wants_test():
 
 def _label(params):
     return ", ".join(f"{k}={v}" for k, v in params.items())
+
+
+def _benchmark(benchmark_prices, benchmark_weights, start):
+    bw = pd.Series(benchmark_weights if benchmark_weights
+                   else {c: 1.0 / benchmark_prices.shape[1] for c in benchmark_prices.columns})
+    bw = bw.reindex(benchmark_prices.columns)
+    wb = benchmark_prices * 0 + bw          # constant weights, rebalanced daily (a simplification)
+    bench = run_backtest(benchmark_prices.dropna(), wb.dropna(), delay=config.EXEC_DELAY_DAYS)
+    return bench.loc[start:]
 
 
 def run_experiment(name, version, prices, build_weights, grid, cost_bps, borrow_bps=0.0,
@@ -66,7 +76,8 @@ def run_experiment(name, version, prices, build_weights, grid, cost_bps, borrow_
     # 2. score on TRAIN only, write everything in the lab notebook
     sr = sharpe(R_train)
     table = pd.DataFrame({"train_sharpe": sr,
-                          "train_return": (1 + R_train).prod() - 1}).sort_values("train_sharpe", ascending=False)
+                          "train_return": (1 + R_train).prod() - 1,
+                          "sharpe_ex_crisis": sharpe(drop_crises(R_train))}).sort_values("train_sharpe", ascending=False)
     trials.log_trials(name, version, [{"params": lab, "train_sharpe": float(sr[lab]),
                                        "n_obs": len(R_train), "data_end": str(prices.index[-1].date())}
                                       for lab in table.index])
@@ -75,7 +86,7 @@ def run_experiment(name, version, prices, build_weights, grid, cost_bps, borrow_
     print(f"Train period {R_train.index[0].date()} to {R_train.index[-1].date()} "
           f"({len(R_train)} days). Test period is locked.")
     show = table.copy()
-    print("\nSettings ranked by TRAIN Sharpe:")
+    print("\nSettings ranked by TRAIN Sharpe (ex-crisis column is for information only; it is NOT used to rank):")
     print(show.to_string(float_format=lambda x: f"{x:.2f}"))
 
     # 3. how much of the best result could be luck?
@@ -102,6 +113,15 @@ def run_experiment(name, version, prices, build_weights, grid, cost_bps, borrow_
     latest = weights.iloc[-1]
     print("  Current holdings:", {t: round(w, 3) for t, w in latest.items() if abs(w) > 1e-9})
 
+    # stress test: what did the chosen setting do INSIDE each crisis (train period only; no test leak)
+    bench_train = None
+    if benchmark_prices is not None:
+        bench_train = _benchmark(benchmark_prices, benchmark_weights, best_res.index[0])
+    print(f"  Sharpe with crisis days REMOVED: {sharpe(drop_crises(R_train[best_label])):.2f}"
+          f"   (full train: {sr[best_label]:.2f})")
+    print("\nStress test: inside each crisis window (same dates for strategy and benchmark):")
+    crisis_table(R_train[best_label], None if bench_train is None else bench_train["ret"])
+
     # 4. the locked test period
     if not wants_test():
         print("\nTEST PERIOD NOT SHOWN. When you are ready for ONE honest look:  add  --test")
@@ -115,12 +135,7 @@ def run_experiment(name, version, prices, build_weights, grid, cost_bps, borrow_
     split_report(full, f"{name}: {best_label}")
     bench = None
     if benchmark_prices is not None:
-        bw = pd.Series(benchmark_weights if benchmark_weights
-                       else {c: 1.0 / benchmark_prices.shape[1] for c in benchmark_prices.columns})
-        bw = bw.reindex(benchmark_prices.columns)
-        wb = benchmark_prices * 0 + bw          # constant weights, rebalanced daily (a simplification)
-        bench = run_backtest(benchmark_prices.dropna(), wb.dropna(), delay=config.EXEC_DELAY_DAYS)
-        bench = bench.loc[full.index[0]:]
+        bench = _benchmark(benchmark_prices, benchmark_weights, full.index[0])
         split_report(bench, f"Benchmark: {benchmark_name} over the same dates")
     cost_sensitivity(prices, weights, borrow_bps=borrow_bps)
     curves = {name: full}

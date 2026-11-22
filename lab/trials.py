@@ -8,13 +8,15 @@ feeds the Deflated Sharpe calculation. COMMIT these two files to git so the coun
 Whenever you change the strategy's LOGIC (not just its settings), change `version` in your
 run script, e.g. "v1" -> "v2": that counts as a new batch of trials.
 """
+import os
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
 
-DIR = Path(__file__).resolve().parents[1] / "experiments"
+# QR_EXPERIMENTS_DIR lets tests/offline demos write somewhere else, so they never pollute the real log
+DIR = Path(os.environ.get("QR_EXPERIMENTS_DIR") or Path(__file__).resolve().parents[1] / "experiments")
 TRIALS = DIR / "trials.csv"
 LOOKS = DIR / "test_looks.csv"
 
