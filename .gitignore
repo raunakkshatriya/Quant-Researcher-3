@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+.pytest_cache/
+# downloaded price files can be re-created any time, so we don't commit them
+data/*.csv

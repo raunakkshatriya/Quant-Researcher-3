@@ -1,2 +1,47 @@
 # Quant-Researcher-3
-different strategies implemented 
+
+Different trading strategies, built one small step at a time and tested on real historical data.
+
+## Rules of this project
+* **Train period:** from the first available date up to **2025-12-31**. We look at this data to choose settings.
+* **Test period:** **2026-01-01** onwards. We only look at it after the settings are fixed. This is the honest check.
+* Every strategy starts with **$100** and the dashboard shows what it would be worth.
+* Every strategy gets its own folder with a `description.txt` explaining what it does, how, and which stocks/indexes it uses.
+* This is research and paper-trading practice, not investment advice.
+
+## Roadmap
+| Step | What | Status |
+|---|---|---|
+| 0 | Set up Python, download prices | done when you see "Step 0 passed" |
+| 1 | Tiny backtest engine (positions -> $100 curve) | |
+| 2 | Sector rotation | |
+| 3 | Cross-sectional momentum | |
+| 4 | Cross-asset trend following | |
+| 5 | Crypto trend | |
+| 6 | Pairs trading | |
+| 7 | FX carry + momentum | |
+| 8 | Execution research | |
+| 9 | News sentiment | |
+| 10 | Dashboard | |
+
+## Setup (once)
+```bash
+git clone https://github.com/raunakkshatriya/Quant-Researcher-3.git
+cd Quant-Researcher-3
+python3 -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+## Step 0
+```bash
+python step0_check_data.py
+```
+You should see a table of Apple prices and, at the end, `Step 0 passed`.
+
+## Each time I push a new step
+```bash
+git pull
+pip install -r requirements.txt   # only matters if I added a package
+```
+Then run the command I give you for that step.

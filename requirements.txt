@@ -1,0 +1,4 @@
+# Only what Step 0 needs. We add packages here as later steps need them.
+pandas>=2.2.3
+numpy>=2.0
+yfinance>=0.2.54
