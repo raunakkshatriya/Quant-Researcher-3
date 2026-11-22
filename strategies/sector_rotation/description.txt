@@ -1,0 +1,56 @@
+SECTOR ROTATION - what it does and how
+======================================
+
+THE IDEA
+The stock market is made of sectors (technology, energy, health care, ...). Which sectors
+lead the market changes slowly: a sector that has beaten the others over the last several
+months tends to keep beating them for a while. This is called relative-strength or
+industry momentum. The strategy simply holds the currently strongest sectors and changes
+the list once a month.
+
+WHAT WE TRADE (our specific execution)
+Eleven "SPDR Select Sector" funds (ETFs). Each fund holds the S&P 500 companies of one sector:
+  XLK  Technology                 XLF  Financials
+  XLV  Health Care                XLE  Energy
+  XLY  Consumer Discretionary     XLP  Consumer Staples
+  XLI  Industrials                XLB  Materials
+  XLU  Utilities                  XLRE Real Estate (exists from Oct 2015)
+  XLC  Communication Services     (exists from Jun 2018)
+Before those two funds exist they are simply left out of the ranking, so early years rotate
+between 9 sectors and later years between 11.
+Benchmark for comparison: SPY (the S&P 500 index fund), bought and held.
+
+THE RULES
+On the last trading day of every month:
+  1. For each sector fund, compute its price return over the last L trading days.
+  2. Rank the funds from best to worst.
+  3. Buy the top K funds, equal amounts (each gets 1/K of the money). Hold nothing else.
+  4. Do nothing until the next month-end.
+Long only: no shorting, no borrowing, always fully invested.
+
+THE SETTINGS L AND K
+We try L in {63, 126, 189, 252} trading days (about 3, 6, 9, 12 months) and K in {2, 3, 4}.
+That is 12 combinations. Each is scored on the TRAIN period only (start of data to
+2025-12-31) using the Sharpe ratio (average return divided by the size of the wiggles; higher
+is better). The best combination is frozen. Only then do we look at the TEST period
+(2026-01-01 onwards). The script prints which combination won.
+
+HOW THE MONEY IS CALCULATED
+- Decision at the end of day t, trade, and the new holdings earn the return of day t+1
+  (the engine's one-day shift - see engine.py).
+- Cost: 3 basis points (0.03%) on every dollar bought or sold.
+- Start: $100 on the first day the strategy holds something. Return is compounded daily.
+
+WHAT TO LOOK FOR IN THE RESULTS
+- Does the strategy beat SPY after costs, or just match it with extra effort?
+- Is the TEST result in the same ballpark as the TRAIN result? A big gap suggests the settings
+  were a lucky fit to the past.
+- The test period is under one year: treat it as a sanity check, not proof.
+
+KNOWN LIMITATIONS
+- Most of what a long-only stock strategy earns is simply the market going up. Compare to SPY.
+- Sectors are defined by the fund provider and were redefined in 2018 (XLC was created
+  from parts of XLK and XLY), so history is not perfectly consistent.
+- Between month-ends we assume the weights are quietly kept equal. In reality they would drift
+  slightly; the effect is tiny for monthly strategies.
+- ETF prices from Yahoo Finance are end-of-day snapshots, not guaranteed tradable prices.

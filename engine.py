@@ -68,3 +68,31 @@ def split_report(result, name):
     if len(result.loc[config.TEST_START:]):
         end = result.loc[config.TEST_START:, "ret"].add(1).prod() * config.START_CAPITAL
         print(f"$100 invested on {config.TEST_START.date()} is worth ${end:.2f} at the end of the data")
+
+
+def month_end_dates(index):
+    """The last trading day of each month (a finished month only).
+
+    Many strategies only change their holdings once a month. This gives us those days.
+    The current, unfinished month is dropped so we never trade on a "fake" month-end.
+    """
+    s = pd.Series(index, index=index)
+    ends = pd.DatetimeIndex(s.groupby([index.year, index.month]).max().to_numpy())
+    if len(ends) and (ends[-1] + pd.offsets.BDay(1)).month == ends[-1].month:
+        ends = ends[:-1]
+    return ends
+
+
+def trim_and_rebase(result):
+    """Cut off the days before the strategy first held anything and restart equity at $100.
+
+    A strategy that needs 1 year of history to make its first decision has nothing to
+    report before that. Starting the $100 on the first day we actually hold something
+    keeps the curve honest.
+    """
+    held = result["traded"] > 0
+    if not held.any():
+        return result.iloc[0:0]
+    out = result.loc[held.idxmax():].copy()
+    out["equity"] = config.START_CAPITAL * (1 + out["ret"]).cumprod()
+    return out
