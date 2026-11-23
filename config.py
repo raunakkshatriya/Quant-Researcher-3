@@ -21,3 +21,8 @@ CRISIS_WINDOWS = {
 
 # Uninvested cash earns the 3-month T-bill rate (FRED). Set False to compare with the old 0% assumption.
 USE_CASH_YIELD = True
+
+# Daily monitor (monitor/ folder, GitHub Actions): forward paper tracking of the ACTIVE books.
+# Every book is marked at $100 at the close of PAPER_START and then followed day by day. The monitor only RECORDS;
+# nothing is tuned or judged from it between scheduled reviews (see monitor/README.md).
+PAPER_START = pd.Timestamp("2026-11-20")

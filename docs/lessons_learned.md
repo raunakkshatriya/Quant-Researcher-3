@@ -56,5 +56,13 @@ precision unverified), or a paid plan (history unlocked? unverified). Expectatio
 Rule: before building a pipeline on a data source, probe a few specific PAST days for the real history depth
 (`check_news_history.py` style) - docs and marketing pages can disagree with what a given account is served.
 
+## Daily monitor and the test lock (2026-11)
+The daily GitHub Action (`monitor/`) only RECORDS: target weights and a forward paper NAV from 2026-11-20 ($100 per active
+book). It computes no Sharpe/alpha and changes no settings. Reason: 2026 is the locked test period, and checking P&L daily
+while adjusting is overfitting in slow motion. Reviews are scheduled (proposed: quarter ends) and use the whole span.
+Also from the dashboard review: momentum and SMA are the same equity bet (corr 0.80), equal dollars gave momentum 63% of
+combined risk, trend + FX carry are the real diversifiers (about 12% of risk), and the 1-year average correlation of the
+books swung 0.12-0.65. SMA's alpha vs equal-weight (t 2.7) may be partly low exposure (beta 0.43): untested.
+
 ## Test-look ledger (do not tune against these)
 momentum 1, trend 2, sector rotation 1, pairs_stocks 1, pairs_etfs 1, fx_carry 2, sma 1.

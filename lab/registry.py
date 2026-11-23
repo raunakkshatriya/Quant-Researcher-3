@@ -113,16 +113,28 @@ def spy_returns():
     return get_prices(["SPY"])["SPY"].loc[:END].pct_change()
 
 
-def build_books():
-    """Returns (books, warnings). A strategy whose data cannot be loaded is skipped with a warning, never faked."""
-    engine.set_default_cash_rate(get_cash_rate() if config.USE_CASH_YIELD else None)
-    books, warnings = {}, []
-    for key, fn in BUILDERS.items():
-        label, status, active = STATUS[key]
-        try:
-            b = fn()
-        except (Exception, SystemExit) as e:                     # missing data files, FRED outage (some loaders call sys.exit), etc.
-            warnings.append(f"{label}: skipped ({type(e).__name__}: {str(e)[:120] or "data could not be loaded"})")
-            continue
-        books[key] = {**b, "label": label, "status": status, "active": active}
-    return books, warnings
+def build_books(end=None, only_active=False):
+    """Returns (books, warnings). A strategy whose data cannot be loaded is skipped with a warning, never faked.
+
+    end         : last date to use (default = config.TRAIN_END, i.e. train only). The daily monitor passes a later date.
+    only_active : skip books marked inactive (rejected) - saves downloads in the daily job.
+    """
+    global END
+    old_end = END
+    END = pd.Timestamp(end) if end is not None else END
+    try:
+        engine.set_default_cash_rate(get_cash_rate() if config.USE_CASH_YIELD else None)
+        books, warnings = {}, []
+        for key, fn in BUILDERS.items():
+            label, status, active = STATUS[key]
+            if only_active and not active:
+                continue
+            try:
+                b = fn()
+            except (Exception, SystemExit) as e:                 # missing data files, FRED outage (some loaders call sys.exit), etc.
+                warnings.append(f"{label}: skipped ({type(e).__name__}: {str(e)[:120] or 'data could not be loaded'})")
+                continue
+            books[key] = {**b, "label": label, "status": status, "active": active}
+        return books, warnings
+    finally:
+        END = old_end

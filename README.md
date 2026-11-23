@@ -22,6 +22,7 @@ python -m pytest -q
 | 1 | Tiny backtest engine (positions -> $100 curve) | |
 | 2 | Sector rotation | `python step2_sector_rotation.py` |
 | 3 | Cross-sectional momentum (+ research lab: trial log, deflated Sharpe, walk-forward, locked test) | `python step3_momentum.py` |
+| 12 | Daily monitor (GitHub Action, weekdays after the US close): fresh prices, frozen active books, logs weights and forward paper NAV from 2026-11-20 in monitor/. Records only, no tuning (monitor/README.md) |
 | 11 | Dashboard: all strategies from $100, correlation / risk / look-through, train only (step11_dashboard.py -> output/dashboard.html) |
 | 10 | PARKED (free news feed has no history, see docs/lessons_learned.md) News sentiment: Alpaca/Benzinga headlines scored by FinBERT on GPU (step10_news_sentiment.py; setup in docs/ALPACA_SETUP.md) |
 | 9b | Re-score sector rotation and trend on the current Sharpe scale vs fair benchmarks (step9_rescore_on_current_scale.py) |
