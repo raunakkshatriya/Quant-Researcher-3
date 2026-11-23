@@ -22,6 +22,7 @@ python -m pytest -q
 | 1 | Tiny backtest engine (positions -> $100 curve) | |
 | 2 | Sector rotation | `python step2_sector_rotation.py` |
 | 3 | Cross-sectional momentum (+ research lab: trial log, deflated Sharpe, walk-forward, locked test) | `python step3_momentum.py` |
+| 9b | Re-score sector rotation and trend on the current Sharpe scale vs fair benchmarks (step9_rescore_on_current_scale.py) |
 | 3b | Re-check momentum vs equal-weight buy & hold of the same 50 stocks (alpha/beta, train only) |
 | 4 | Cross-asset trend following | `python step4_trend_riskparity.py` |
 | 5 | Pairs trading: 49 stocks vs 11 sector ETFs, compared (crypto trend postponed) | `python step5_pairs.py` |
