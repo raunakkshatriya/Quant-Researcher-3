@@ -36,7 +36,7 @@ Real-capital decisions are always yours; this is research and paper-trading prac
 * **Point-in-time universe**: our 50 stocks are today's winners (survivorship bias). Needs historical index membership.
 * **Data**: Yahoo Finance is free but unaudited. Production needs a vendor feed with corporate-action history and delisted names.
 * **Broker adapter + paper trading** (Alpaca): orders, fills, reconciliation against our target weights.
-* **Realistic execution**: only a flat cost + 1-day delay today; no intraday fills, no market impact, no capacity limits.
+* **Realistic execution**: the lab still uses a flat cost + 1-day delay, but `step8_capacity.py` / `lab/capacity.py` now measures how net performance falls with account size (half-spread + square-root market impact from daily volume). Still missing: intraday fills (Stage B: open/close/TWAP/VWAP comparison, needs Alpaca minute bars) and costs measured from real fills rather than published rules of thumb.
 * **Live monitoring**: kill switch, drawdown alerts, daily P&L reconciliation, signal logging.
 * **Portfolio level**: combining strategies, correlated-risk review, vol targeting.
 * **More testing history**: the test window is under one year. A strategy needs far more out-of-sample time, ideally a paper-trading period, before real money.

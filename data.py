@@ -98,3 +98,20 @@ def get_fred_series(series_id):
     raw = pd.read_csv(file, index_col=0, parse_dates=True).iloc[:, 0]
     out = (pd.to_numeric(raw, errors="coerce") / 100.0).dropna()
     return out if len(out) else None
+
+
+def get_volumes(tickers, start="1990-01-01"):
+    """Daily share volume, one column per ticker. Reads the Volume column of the same cached files get_prices uses
+    (downloading them first if needed). Yahoo volume is consolidated (all US exchanges) and split-adjusted."""
+    if isinstance(tickers, str):
+        tickers = [tickers]
+    get_prices(tickers, start=start)             # makes sure the cache files exist
+    columns = {}
+    for t in tickers:
+        file = DATA_DIR / f"{t}.csv"
+        if not file.exists():
+            continue
+        df = pd.read_csv(file, index_col=0, parse_dates=True)
+        if "Volume" in df.columns:
+            columns[t] = df["Volume"]
+    return pd.DataFrame(columns).sort_index()

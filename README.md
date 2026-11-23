@@ -26,7 +26,7 @@ python -m pytest -q
 | 5 | Pairs trading: 49 stocks vs 11 sector ETFs, compared (crypto trend postponed) | `python step5_pairs.py` |
 | 6 | FX carry + momentum (9 currencies vs USD) | `python step6_fx_carry.py` |
 | 7 | SMA trend filter, the baseline (49 stocks) | `python step7_sma.py` |
-| 8 | Execution research (capacity study first) | |
+| 8 | Execution research, Stage A: capacity study (cost vs account size) | `python step8_capacity.py` |
 | 9 | Crypto trend (postponed) | |
 | 10 | News sentiment | |
 | 11 | Dashboard | |
