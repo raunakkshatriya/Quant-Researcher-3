@@ -3,7 +3,7 @@ import pandas as pd
 
 import risk
 from lab import trials
-from lab.stats import deflated_sharpe_prob, expected_max_sharpe, sharpe
+from lab.stats import alpha_beta, deflated_sharpe_prob, expected_max_sharpe, sharpe
 from lab.walkforward import walk_forward
 
 
@@ -49,3 +49,25 @@ def test_trial_count_ignores_reruns(tmp_path, monkeypatch):
     assert trials.trial_count("s") == 1                          # same settings re-run: not a new trial
     trials.log_trials("s", "v2", row)
     assert trials.trial_count("s") == 2                          # new logic version: counts again
+
+
+def test_alpha_beta_recovers_known_alpha_and_beta():
+    rng = np.random.default_rng(1)
+    idx = pd.bdate_range("2015-01-01", periods=2500)
+    bench = pd.Series(rng.normal(0.0004, 0.01, len(idx)), index=idx)
+    strat = 0.0004 + 0.8 * bench + pd.Series(rng.normal(0, 0.002, len(idx)), index=idx)   # +10%/yr alpha, beta 0.8
+    r = alpha_beta(strat, bench)
+    assert abs(r["beta"] - 0.8) < 0.05
+    assert 0.07 < r["alpha"] < 0.13
+    assert r["t_alpha"] > 3
+
+
+def test_alpha_beta_no_alpha_when_strategy_is_just_the_benchmark():
+    rng = np.random.default_rng(2)
+    idx = pd.bdate_range("2015-01-01", periods=2500)
+    bench = pd.Series(rng.normal(0.0004, 0.01, len(idx)), index=idx)
+    strat = 1.2 * bench + pd.Series(rng.normal(0, 0.004, len(idx)), index=idx)
+    r = alpha_beta(strat, bench)
+    assert abs(r["beta"] - 1.2) < 0.08
+    assert abs(r["t_alpha"]) < 2.5
+    assert alpha_beta(strat.iloc[:10], bench.iloc[:10]) == {}

@@ -44,6 +44,27 @@ def versus_benchmark(strategy_ret, benchmark_ret, periods=252):
             "info_ratio": a.mean() / a.std() * np.sqrt(periods), "t_stat": a.mean() / (a.std() / np.sqrt(n))}
 
 
+def alpha_beta(strategy_ret, benchmark_ret, periods=252, lags=5):
+    """Split a strategy's excess return into "just riding the benchmark" and "something extra".
+
+    Regress the strategy's daily excess return (over cash) on the benchmark's:
+        strategy = alpha + beta * benchmark + noise
+      beta     : how much of the benchmark's move the strategy copies (1.0 = moves with it).
+      alpha    : yearly return left over AFTER removing beta * benchmark. This is the part
+                 that is not simply "own the same stocks".
+      t_alpha  : |t| above about 2 = alpha unlikely to be luck. Uses Newey-West standard
+                 errors (robust to autocorrelation), so it is a bit stricter than versus_benchmark.
+      r_squared: share of the strategy's variation explained by the benchmark.
+    """
+    import statsmodels.api as sm
+    df = pd.concat([_excess(strategy_ret), _excess(benchmark_ret)], axis=1, keys=["s", "b"]).dropna()
+    if len(df) < 60 or df["b"].std() == 0 or df["s"].std() == 0:
+        return {}
+    fit = sm.OLS(df["s"], sm.add_constant(df["b"])).fit(cov_type="HAC", cov_kwds={"maxlags": lags})
+    return {"alpha": float(fit.params["const"]) * periods, "beta": float(fit.params["b"]),
+            "t_alpha": float(fit.tvalues["const"]), "r_squared": float(fit.rsquared)}
+
+
 def expected_max_sharpe(n_trials, sharpe_std):
     """Largest (per-period) Sharpe we expect to see by pure luck among `n_trials` useless trials.
 
