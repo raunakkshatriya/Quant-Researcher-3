@@ -57,10 +57,11 @@ print(stocks_full[["AAPL", "MSFT", "JPM"]].dropna().iloc[[0, -1]].round(3).to_st
 
 # ---- Old convention check: the trial log's 1.14 was written BEFORE the cash-yield change (commit 69be10d) ----
 # Back then: cash earned 0% and Sharpe = mean / std (risk-free rate assumed 0). Re-run that way:
+new_sharpe = sharpe(a)                      # computed BEFORE cash is switched off
 engine.set_default_cash_rate(None)
 old = run(stocks_full, "old")
 old_sharpe = old.mean() / old.std() * np.sqrt(252)
 print(f"\nOLD convention (cash earns 0%, Sharpe with risk-free = 0): {old_sharpe:.3f}   (trial log: {row.train_sharpe:.3f})")
-print(f"NEW convention (cash earns T-bills, Sharpe over cash)     : {sharpe(a):.3f}")
+print(f"NEW convention (cash earns T-bills, Sharpe over cash)     : {new_sharpe:.3f}")
 print("If OLD is about the trial-log value, the gap is the definition of Sharpe, not a bug: "
       "the new number subtracts what T-bills paid (a few % a year), which is the more honest measure.")
