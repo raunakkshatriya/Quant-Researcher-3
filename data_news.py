@@ -87,8 +87,9 @@ def download_news(tickers, start="2015-01-01", end=None, session=None, news_dir=
     for t in tickers:
         f = Path(news_dir) / f"{t}.csv"
         have = load_cached(t, news_dir)
-        # resume from the newest cached article (inclusive; duplicates are dropped when reading)
-        s = pd.to_datetime(have["created_at"], utc=True).max() if len(have) else _utc(start)
+        # resume from just before the newest cached article
+        # The API orders by UPDATED date, so an old article can reappear late: re-read the last 3 days (duplicates are dropped).
+        s = pd.to_datetime(have["created_at"], utc=True).max() - pd.Timedelta(days=3) if len(have) else _utc(start)
         new = 0
         for rows in fetch_pages(t, s, end, session, pause):
             pd.DataFrame(rows).to_csv(f, mode="a", header=not f.exists(), index=False)
