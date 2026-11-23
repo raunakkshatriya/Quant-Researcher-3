@@ -5,6 +5,7 @@ import pytest
 
 from strategies.momentum.strategy import build_weights as momentum
 from strategies.sector_rotation.strategy import build_weights as sector
+from strategies.sma.strategy import build_weights as sma
 from strategies.trend_riskparity.strategy import build_weights as trend
 
 
@@ -19,6 +20,8 @@ def _prices(n_assets, seed=0):
     (sector, {"lookback": 126, "k": 3}, 11),
     (momentum, {"lookback": 189, "k": 5, "mode": "long_short"}, 30),
     (trend, {"lookback": 126, "vol_target": 0.08}, 9),
+    (sma, {"rule": "price>SMA100"}, 20),
+    (sma, {"rule": "SMA50>SMA200"}, 20),
 ])
 def test_no_lookahead(fn, kwargs, n):
     px = _prices(n)
@@ -199,3 +202,44 @@ def test_splice_makes_recent_carry_known_instead_of_stale():
     assert data_fx.daily_rate(stale, idx).iloc[-1] != data_fx.daily_rate(stale, idx).iloc[-1]   # NaN: stale
     fixed, _ = data_fx.splice_rate(stale, _daily("2023-01-01", "2026-11-20", 0.02))
     assert data_fx.daily_rate(fixed, idx).iloc[-1] == pytest.approx(0.02)
+
+
+# ---------------------------------------------------------------- SMA trend filter
+from strategies.sma import strategy as sma_mod
+
+
+def test_sma_rule_parsing():
+    assert sma_mod.parse_rule("price>SMA200") == (0, 200)
+    assert sma_mod.parse_rule("SMA50>SMA200") == (50, 200)
+    with pytest.raises(ValueError):
+        sma_mod.parse_rule("price<SMA200")
+
+
+def test_sma_holds_rising_stock_and_drops_falling_stock():
+    idx = pd.bdate_range("2010-01-01", "2012-12-31")
+    n = len(idx)
+    px = pd.DataFrame({"UP": 100 * 1.001 ** np.arange(n), "DOWN": 100 * 0.999 ** np.arange(n)}, index=idx)
+    w = sma_mod.build_weights(px, "price>SMA50")
+    assert (w.iloc[:49] == 0).all().all()                     # not enough history for a 50-day average yet
+    assert (w["UP"].iloc[60:] == 0.5).all()                   # in an uptrend: 1/2 of the money (2 stocks available)
+    assert (w["DOWN"] == 0).all()                             # below its average: not held, share stays in cash
+    assert w.sum(axis=1).max() <= 1.0 + 1e-12
+
+
+def test_sma_crossover_needs_fast_above_slow():
+    idx = pd.bdate_range("2010-01-01", "2013-12-31")
+    n = len(idx)
+    up_then_down = np.concatenate([100 * 1.002 ** np.arange(n // 2), 100 * 1.002 ** (n // 2) * 0.998 ** np.arange(n - n // 2)])
+    px = pd.DataFrame({"X": up_then_down}, index=idx)
+    w = sma_mod.build_weights(px, "SMA50>SMA200")["X"]
+    assert w.iloc[250] == 1.0 and w.iloc[-1] == 0.0           # held during the rise, out after the fall
+
+
+def test_equal_weight_index_ignores_stocks_that_do_not_exist_yet():
+    idx = pd.bdate_range("2020-01-01", "2020-06-30")
+    px = pd.DataFrame({"A": 100.0, "B": 50.0}, index=idx)
+    px.loc[:"2020-03-31", "B"] = np.nan                       # B is listed only from April
+    ix = sma_mod.equal_weight_index(px)
+    assert ix.iloc[-1] == pytest.approx(100.0)                # flat prices -> flat index, no jump when B appears
+    px["B"] = px["B"] * np.where(px.index >= "2020-05-01", 2.0, 1.0)     # B doubles in one day
+    assert sma_mod.equal_weight_index(px).iloc[-1] == pytest.approx(150.0)

@@ -1,0 +1,51 @@
+SMA TREND FILTER - the baseline strategy
+========================================
+Run:  python step7_sma.py          (train period only; test period locked)
+      python step7_sma.py --test   (one logged look at the test period)
+
+WHAT AN SMA IS
+SMA = simple moving average: the average of the last N closing prices, recalculated every day.
+Closes 10, 11, 12, 13, 14 -> 5-day SMA = 12. A price of 14 is above its average (it has been rising);
+a price of 9 would be below (it has been falling).
+
+THE RULE
+Hold a stock only while it is in an uptrend. When it is not, hold none of it and keep that share of the
+money in cash (earning T-bills). Every stock is judged on its own.
+
+WHAT WE TRADE (our specific execution): the same 49 stocks as the pairs strategy
+(the 50 largest US companies on 2026-09-08, minus GOOG, which is the same company as GOOGL):
+  NVDA AAPL GOOGL MSFT AMZN AVGO META TSLA MU LLY JPM WMT AMD V JNJ XOM MA INTC ORCL ABBV BAC CSCO PLTR CVX
+  COST LRCX KO CAT MRK AMAT UNH GE MS PG DELL NFLX HD GS PM WFC PANW RTX GEV ANET KLAC AMGN TXN C TMO
+Benchmark: equal-weight buy-and-hold of the same stocks (each stock that exists gets an equal share,
+rebalanced daily, a simplification). The run also prints SPY for context.
+
+THE PROCESS
+1. SIGNAL     Each day, from closes up to and including today, compute the rule for each stock.
+2. RULES      The lab tries five (train only):
+                price>SMA50, price>SMA100, price>SMA150, price>SMA200   (price above its N-day average)
+                SMA50>SMA200                                             (50-day average above 200-day: the
+                                                                          classic "golden cross")
+3. WEIGHTS    Money is split equally among all stocks that EXIST with enough history that day. A stock in an
+              uptrend gets that equal share; a stock not in an uptrend gets nothing and its share stays in
+              cash. So exposure moves between 0% and 100%. A stock needs N days of history before it can be held.
+              Risk limit: max 25% in any one stock, max 100% total.
+4. EXECUTION  Signal at the close of day t, trade at the close of day t+1, first return earned on day t+2.
+5. COSTS      5 bp per $ traded (spread + slippage; commission is zero). Long-only, so no borrow fee.
+              Whipsaw (flipping in and out around the average) means more trades and more cost; the run prints
+              round trips per stock per year so you can see it.
+
+WHY IT EXISTS
+It is the simplest trend-following rule, so it is the bar every fancier strategy has to clear. The honest
+question is not "is the SMA profitable?" (these stocks mostly went up) but "does timing beat just owning the
+same stocks, or does it only smooth the ride?"
+
+KNOWN WEAKNESSES
+* Survivorship bias: the list is today's giants. Their past uptrends are known, so buy-and-hold looks great
+  and the SMA mostly stays invested because the stocks mostly rose.
+* A moving average always LAGS: it signals a turn only after the price has already moved. In sideways, choppy
+  markets it whipsaws and pays costs.
+* Typical outcome for timing rules: lower drawdowns with similar or lower return than holding, not higher profit.
+* The 49 stocks are not 49 independent bets (many fall together), so many exits happen at once.
+* Choosing among 5 rules is a small search; read the deflated Sharpe, but it cannot see survivorship.
+* Related to the cross-asset trend strategy (step 4), which uses past returns instead of an average:
+  this is a baseline, not a new source of return.

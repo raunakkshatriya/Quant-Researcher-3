@@ -25,10 +25,11 @@ python -m pytest -q
 | 4 | Cross-asset trend following | `python step4_trend_riskparity.py` |
 | 5 | Pairs trading: 49 stocks vs 11 sector ETFs, compared (crypto trend postponed) | `python step5_pairs.py` |
 | 6 | FX carry + momentum (9 currencies vs USD) | `python step6_fx_carry.py` |
-| 7 | Crypto trend (postponed) | |
-| 8 | Execution research | |
-| 9 | News sentiment | |
-| 10 | Dashboard | |
+| 7 | SMA trend filter, the baseline (49 stocks) | `python step7_sma.py` |
+| 8 | Execution research (capacity study first) | |
+| 9 | Crypto trend (postponed) | |
+| 10 | News sentiment | |
+| 11 | Dashboard | |
 
 ## Setup (once)
 ```bash
