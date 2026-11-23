@@ -7,3 +7,6 @@ __pycache__/
 data/*.csv
 output/*.png
 output/*.csv
+data/news/
+data/news_scores.csv
+.env

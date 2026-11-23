@@ -1,0 +1,45 @@
+NEWS SENTIMENT - step 10
+========================
+Run order:  python step10_news_sentiment.py fetch | score | ic | run   (details in the script's docstring)
+
+THE IDEA
+Headlines move stocks. A language model reads each headline about a company and says whether it sounds like good
+or bad news. If stocks with recently positive news then do better than the others, we can hold those.
+
+WHAT WE TRADE (our specific execution): the same 49 stocks as the SMA and pairs steps
+(the 50 largest US companies on 2026-09-08, minus GOOG which is the same company as GOOGL):
+  NVDA AAPL GOOGL MSFT AMZN AVGO META TSLA MU LLY JPM WMT AMD V JNJ XOM MA INTC ORCL ABBV BAC CSCO PLTR CVX
+  COST LRCX KO CAT MRK AMAT UNH GE MS PG DELL NFLX HD GS PM WFC PANW RTX GEV ANET KLAC AMGN TXN C TMO
+Benchmark: equal-weight buy-and-hold of the same stocks (each existing stock an equal share, rebalanced daily).
+
+DATA
+Alpaca News API (articles supplied by Benzinga), history from 2015, free with an Alpaca account. Only headlines are
+used. Articles tagged with more than 3 tickers (market roundups) are ignored. The same headline for the same stock on
+the same day counts once.
+
+THE PROCESS
+1. SCORE      FinBERT (ProsusAI/finbert, run on your GPU) gives each headline P(positive), P(negative), P(neutral).
+              Score = P(positive) - P(negative), from -1 (bad) to +1 (good). Each article is scored once and cached.
+2. TIMING     Decision at the 4pm New York close of day t; trade at the next close (the engine's 1-day delay). Only news
+              published BEFORE 4pm NY on day t may be used on day t. News at or after 4pm, at weekends, or on holidays
+              is first usable on the next trading day. Time zones are converted properly (summer/winter).
+3. SIGNAL     For each stock: the average score of its articles over the last `window` trading days (1 or 5), needing at
+              least 3 articles, otherwise no opinion.
+4. WEIGHTS    On the last trading day of each week: hold the 10 stocks with the highest signal, 10% each (needs at
+              least 15 stocks with an opinion that week). The rest is cash earning T-bills. Held until next week.
+5. COSTS      5 bp per $ traded. No shorting.
+
+THE TWO PHASES
+Phase A ("ic"): before any backtest, measure whether the signal predicts next-day and 5-day relative returns at all
+  (rank correlation = information coefficient, plus top-fifth minus bottom-fifth return). No signal = stop.
+Phase B ("run"): the usual lab experiment (2 settings: window 1 or 5), deflated Sharpe, walk-forward, versus the
+  equal-weight benchmark, crisis windows (reporting only). Test period (2026-) stays locked unless --test.
+
+KNOWN FLAWS (read these)
+- News is usually priced in within minutes; we trade at the next DAILY close. Any edge is probably small.
+- These are mega-cap stocks everyone reads: the hardest place to find a news edge.
+- About 10 years of data: Sharpe estimates are noisy (standard error about 0.3).
+- FinBERT was trained on formal sentences, not headlines; many headlines come out neutral or misjudged.
+- Survivorship: the stock list is today's biggest companies.
+- Coverage of the news feed can change over time; "fetch" prints articles per year so you can see it.
+- Half-days (1pm close) are not modelled (about 3 days a year).

@@ -1,0 +1,3 @@
+# Extra packages for step 10 (news sentiment). PyTorch is installed separately - see docs/ALPACA_SETUP.md.
+requests>=2.31
+transformers>=4.40
