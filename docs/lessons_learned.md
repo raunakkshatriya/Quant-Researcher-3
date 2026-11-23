@@ -33,5 +33,16 @@ where the right answer is known (no true edge -> alpha near 0) before running on
 My first old-vs-new Sharpe check computed both after switching cash off, so both lines matched. Compute each
 number under its own setting before changing global state (`engine.set_default_cash_rate` is global).
 
+## 2026-11-23 - Sector rotation and trend re-scored against fair benchmarks (current Sharpe scale, train)
+Sector rotation v1 (252d, top 4): Sharpe 0.47 vs equal-weight of the 11 sector ETFs 0.56 (SPY 0.40); alpha vs
+equal-weight +3.0%/yr, t 1.18, beta 0.92, R2 0.84; worst drawdown -46% vs -36%. All 12 grid settings score <= 0.47,
+i.e. none beats simply owning all sectors. Verdict: NOT supported.
+Trend v1 (126d, vol 6%): Sharpe 0.70 vs 60/40 0.69; return 6.1% vs 8.8%, volatility 6.4% vs 10.7%, drawdown -15% vs
+-31%; alpha +2.4%/yr (t 1.98) at beta 0.27, but active return -3.0%/yr (t -1.5). Longer lookbacks are worse, so v1
+is the best of 9. Verdict: no Sharpe edge over 60/40; it is a lower-risk, low-correlation diversifier (R2 0.21),
+which is a portfolio-level question for the combined-dashboard review, not evidence of alpha.
+General: a strategy that beats SPY but not its own fair yardstick has shown nothing. Pattern so far: momentum weak,
+sector rotation no, trend tie, pairs no, FX carry weak, SMA no (risk reduction only).
+
 ## Test-look ledger (do not tune against these)
 momentum 1, trend 2, sector rotation 1, pairs_stocks 1, pairs_etfs 1, fx_carry 2, sma 1.
