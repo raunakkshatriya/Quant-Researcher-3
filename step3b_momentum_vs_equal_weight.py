@@ -43,16 +43,26 @@ def momentum_returns(lookback, k):
 mom = momentum_returns(LOOKBACK, K)
 start = mom.index[0]
 ew = equal_weight_index(stocks).pct_change().loc[start:]   # same definition as step 7 (stocks without history are ignored); index level -> daily returns
-spy = spy_px[BENCHMARK].pct_change().loc[start:]
-idx = mom.index.intersection(ew.index).intersection(spy.dropna().index)
-mom, ew, spy = mom.loc[idx], ew.loc[idx], spy.loc[idx]
+spy_all = spy_px[BENCHMARK].pct_change().loc[start:]
+# The window is set by momentum and equal-weight ONLY. (An earlier draft also required SPY data, which silently cut
+# off the first ~2 years because SPY starts in 1993 and made the numbers differ from step 3's.)
+idx = mom.index.intersection(ew.index)
+mom, ew = mom.loc[idx], ew.loc[idx]
+spy = spy_all.reindex(idx)                               # NaN before SPY exists
+spy_idx = spy.dropna().index
 
-print(f"Train period {idx[0].date()} to {idx[-1].date()}  ({len(idx) / 252:.1f} years)")
+print(f"Train period {idx[0].date()} to {idx[-1].date()}  ({len(idx) / 252:.1f} years, {len(idx)} days; step 3's trial log used the same kind of window)")
+print(f"SPY only has data from {spy_idx[0].date()}, so SPY rows use that shorter window.")
 print("WARNING: all 50 stocks are TODAY's biggest companies, so BOTH momentum and the equal-weight list are flattered by survivorship.\n")
+
+print("=== Reconciliation with step 3 (momentum v1, 252d, top 10) ===")
+print(f"Sharpe, full window from {idx[0].date()}   : {sharpe(mom):.2f}   (step 3's trial log said 1.14 -> these two should match)")
+print(f"Sharpe, only from {spy_idx[0].date()} (SPY start): {sharpe(mom.loc[spy_idx]):.2f}   <- what the first version of this script printed")
+print(f"Sharpe of the first years only ({idx[0].date()} to {spy_idx[0].date()}): {sharpe(mom.loc[: spy_idx[0]]):.2f}\n")
 
 print("=== Side by side (train) ===")
 rows = {}
-for name, r in (("Momentum v1 (252d, top 10)", mom), ("Equal-weight 50 stocks", ew), ("SPY buy & hold", spy)):
+for name, r in (("Momentum v1 (252d, top 10)", mom), ("Equal-weight 50 stocks", ew), ("SPY buy & hold (shorter window)", spy.dropna())):
     m = metrics(r)
     rows[name] = {"Sharpe": m["sharpe"], "CAGR": m["cagr"], "Volatility": m["volatility"], "Worst drawdown": m["max_drawdown"]}
 tbl = pd.DataFrame(rows).T
@@ -62,7 +72,7 @@ for c in ("CAGR", "Volatility", "Worst drawdown"):
 print(tbl.to_string())
 
 print("\n=== Does momentum beat each yardstick? ===")
-for label, bench in (("equal-weight 50", ew), ("SPY", spy)):
+for label, bench in (("equal-weight 50", ew), ("SPY (SPY window)", spy)):
     v = versus_benchmark(mom, bench)
     a = alpha_beta(mom, bench)
     if v and a:
@@ -76,7 +86,7 @@ for lo in range(idx[0].year, idx[-1].year + 1, 5):
     sl = idx[(idx.year >= lo) & (idx.year < lo + 5)]
     if len(sl) < 250:
         continue
-    blocks[f"{lo}-{min(lo + 4, idx[-1].year)}"] = {"Momentum": sharpe(mom.loc[sl]), "Equal-weight": sharpe(ew.loc[sl]), "SPY": sharpe(spy.loc[sl])}
+    blocks[f"{lo}-{min(lo + 4, idx[-1].year)}"] = {"Momentum": sharpe(mom.loc[sl]), "Equal-weight": sharpe(ew.loc[sl]), "SPY": sharpe(spy.loc[sl]) if spy.loc[sl].notna().sum() > 120 else float("nan")}
 print(pd.DataFrame(blocks).T.to_string(float_format=lambda x: f"{x:.2f}"))
 
 print("\n=== All 12 step-3 settings vs equal-weight (descriptive only; train Sharpe) ===")
