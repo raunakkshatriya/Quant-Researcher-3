@@ -71,3 +71,57 @@ def test_alpha_beta_no_alpha_when_strategy_is_just_the_benchmark():
     assert abs(r["beta"] - 1.2) < 0.08
     assert abs(r["t_alpha"]) < 2.5
     assert alpha_beta(strat.iloc[:10], bench.iloc[:10]) == {}
+
+
+# ---------------- portfolio views ----------------
+from lab.portfolio import (combine_equal, combine_inverse_vol, common_window, lookthrough,
+                           risk_contributions, rolling_avg_correlation)
+
+
+def _books(n=800, seed=0):
+    rng = np.random.default_rng(seed)
+    idx = pd.bdate_range("2015-01-01", periods=n)
+    a = pd.Series(rng.normal(0.0004, 0.02, n), index=idx)
+    b = pd.Series(rng.normal(0.0002, 0.005, n), index=idx)
+    return a, b
+
+
+def test_common_window_keeps_only_days_everyone_has():
+    a, b = _books()
+    df = common_window({"a": a, "b": b.iloc[100:]})
+    assert df.index[0] == b.index[100] and df.notna().all().all()
+
+
+def test_rolling_avg_correlation_detects_identical_and_unrelated_books():
+    a, b = _books()
+    same = pd.DataFrame({"x": a, "y": a * 2})
+    assert rolling_avg_correlation(same, window=250).min() > 0.999
+    diff = pd.DataFrame({"x": a, "y": b})
+    assert abs(rolling_avg_correlation(diff, window=250).mean()) < 0.2
+
+
+def test_risk_contributions_sum_to_one_and_volatile_book_dominates():
+    a, b = _books()
+    rc = risk_contributions(pd.DataFrame({"a": a, "b": b}))
+    assert abs(rc.sum() - 1) < 1e-9 and rc["a"] > 0.9               # a is 4x as volatile as b
+    twin = risk_contributions(pd.DataFrame({"a": a, "c": a}))
+    assert abs(twin["a"] - 0.5) < 1e-9
+
+
+def test_inverse_vol_uses_only_past_volatility():
+    a, b = _books()
+    df = pd.DataFrame({"a": a, "b": b})
+    base = combine_inverse_vol(df, window=100)
+    df2 = df.copy()
+    df2.iloc[500:] = df2.iloc[500:] * 5                              # rewrite the future
+    changed = combine_inverse_vol(df2, window=100)
+    pd.testing.assert_series_equal(base.iloc[:390], changed.iloc[:390])    # up to ~day 490 nothing may move
+    assert combine_equal(df).iloc[0] == (a.iloc[0] + b.iloc[0]) / 2
+
+
+def test_lookthrough_groups_and_cash():
+    holdings = {"s1": pd.Series({"AAA": 0.3, "BBB": 0.3, "CCC": 0.2}), "s2": pd.Series({"AAA": 1.0})}
+    t = lookthrough(holdings, {"AAA": "tech", "BBB": "tech", "CCC": "health"})
+    assert abs(t.loc["tech", "s1"] - 0.6) < 1e-12 and abs(t.loc["health", "s1"] - 0.2) < 1e-12
+    assert abs(t.loc["cash", "s1"] - 0.2) < 1e-12 and abs(t.loc["cash", "s2"]) < 1e-12
+    assert (t.sum() - 1).abs().max() < 1e-12
