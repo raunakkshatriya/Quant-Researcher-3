@@ -22,7 +22,7 @@ python -m pytest -q
 | 1 | Tiny backtest engine (positions -> $100 curve) | |
 | 2 | Sector rotation | `python step2_sector_rotation.py` |
 | 3 | Cross-sectional momentum (+ research lab: trial log, deflated Sharpe, walk-forward, locked test) | `python step3_momentum.py` |
-| 10 | News sentiment: Alpaca/Benzinga headlines scored by FinBERT on GPU (step10_news_sentiment.py; setup in docs/ALPACA_SETUP.md) |
+| 10 | PARKED (free news feed has no history, see docs/lessons_learned.md) News sentiment: Alpaca/Benzinga headlines scored by FinBERT on GPU (step10_news_sentiment.py; setup in docs/ALPACA_SETUP.md) |
 | 9b | Re-score sector rotation and trend on the current Sharpe scale vs fair benchmarks (step9_rescore_on_current_scale.py) |
 | 3b | Re-check momentum vs equal-weight buy & hold of the same 50 stocks (alpha/beta, train only) |
 | 4 | Cross-asset trend following | `python step4_trend_riskparity.py` |

@@ -44,5 +44,17 @@ which is a portfolio-level question for the combined-dashboard review, not evide
 General: a strategy that beats SPY but not its own fair yardstick has shown nothing. Pattern so far: momentum weak,
 sector rotation no, trend tie, pairs no, FX carry weak, SMA no (risk reduction only).
 
+## 2026-11-23 - News sentiment (step 10) PARKED: the free news feed has no history
+Built the full pipeline (fetch -> FinBERT on GPU -> 4pm-NY timing -> IC check -> backtest, all unit-tested and
+mutation-checked). On the user's free Alpaca paper account the News API returned nothing before 2026-04-29, even for
+AAPL and market-wide, despite docs advertising history back to 2015 (`check_news_history.py`). Only 2026 data exists,
+which is inside the locked test period, so no honest train/test is possible. GOOGL returned nothing because the feed
+tags Alphabet as GOOG. OpenBB cannot help (it is a wrapper over providers; the repos offered were unofficial forks).
+Options left open: forward collection (rerun `python step10_news_sentiment.py fetch` now and then; unknown whether the
+free window rolls forward and drops old items, so keep the CSVs), a public dataset such as FNSPID (1999-2023, timestamp
+precision unverified), or a paid plan (history unlocked? unverified). Expectation stays "probably null" for mega-caps.
+Rule: before building a pipeline on a data source, probe a few specific PAST days for the real history depth
+(`check_news_history.py` style) - docs and marketing pages can disagree with what a given account is served.
+
 ## Test-look ledger (do not tune against these)
 momentum 1, trend 2, sector rotation 1, pairs_stocks 1, pairs_etfs 1, fx_carry 2, sma 1.
