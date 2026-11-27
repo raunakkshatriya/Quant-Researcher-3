@@ -1,6 +1,6 @@
 # Daily monitor
 
-- Last final price bar used: **2026-11-25** (job ran 2026-11-26 04:25 UTC)
+- Last final price bar used: **2026-11-26** (job ran 2026-11-27 04:34 UTC)
 - Paper tracking: every book = $100 at the close of 2026-11-20, then followed forward. Books start already holding their positions (no entry cost), like the backtests.
 - Status: **OK**
 
@@ -11,7 +11,7 @@
 | Momentum | 2026-11-25 | $103.00 | 10 | 100% | 0.0% |
 | Trend / risk parity | 2026-11-25 | $102.34 | 3 | 87% | 0.0% |
 | SMA trend filter | 2026-11-25 | $101.66 | 22 | 45% | 3.1% |
-| FX carry | 2026-11-25 | $99.86 | 6 | 0% | 0.0% |
+| FX carry | 2026-11-26 | $99.79 | 6 | 0% | 0.0% |
 
 ## Target weights for the next trading day (top 10 per book)
 

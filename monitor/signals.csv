@@ -166,3 +166,9 @@ date,book,ticker,weight
 2026-11-25,trend,DBC,0.204184
 2026-11-25,trend,EFA,0.316661
 2026-11-25,trend,SPY,0.34841
+2026-11-26,fx_carry,AUD,0.166667
+2026-11-26,fx_carry,CHF,-0.166667
+2026-11-26,fx_carry,GBP,0.166667
+2026-11-26,fx_carry,JPY,-0.166667
+2026-11-26,fx_carry,NOK,0.166667
+2026-11-26,fx_carry,SEK,-0.166667
